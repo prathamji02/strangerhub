@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node node_modules/prisma/build/index.js migrate deploy && node server.js",
+    "start": "npx prisma db push && node server.js",
     "build": "echo 'Build step complete.'",
     "postinstall": "node node_modules/prisma/build/index.js generate"
   },
