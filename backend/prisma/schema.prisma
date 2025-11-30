@@ -1,0 +1,91 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  enrollment_no   String    @unique
+  name            String
+  email           String    @unique
+  phone_no        String    @unique
+  gender          String
+  fake_name       String?   @unique
+  is_premium      Boolean   @default(false)
+  status          String    @default("ACTIVE") // Can be ACTIVE, BANNED, FROZEN
+  isAdmin         Boolean   @default(false)
+  created_at      DateTime  @default(now())
+  login_otp       String?
+  otp_expiry      DateTime?
+  averageRating   Float     @default(0)
+  ratingCount     Int       @default(0)
+  unfreezeAt      DateTime? // <-- NEW: For timed freeze
+
+  chatrooms       Chatroom[] @relation("ChatroomParticipants")
+  hiddenChats     Chatroom[] @relation("HiddenChatsForUsers") // <-- NEW: For soft deleting chats
+  sent_messages   Message[]  @relation("SentMessages")
+  ratingsGiven    Rating[]   @relation("RatingsGiven")
+  ratingsReceived Rating[]   @relation("RatingsReceived")
+  blockedUsers    Block[]    @relation("blockedBy")
+  blockedBy       Block[]    @relation("blocking")
+  reportsMade     Report[]   @relation("reporter")
+  reportsAgainst  Report[]   @relation("reported")
+}
+
+model Chatroom {
+  id           String   @id @default(cuid())
+  is_private   Boolean  @default(false)
+  created_at   DateTime @default(now())
+  participants User[]   @relation("ChatroomParticipants")
+  hiddenFor    User[]   @relation("HiddenChatsForUsers") // <-- NEW: Tracks users who soft-deleted
+  messages     Message[] @relation("ChatroomMessages")
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  content     String
+  created_at  DateTime @default(now())
+  sender_id   String
+  sender      User     @relation("SentMessages", fields: [sender_id], references: [id], onDelete: Cascade)
+  chatroom_id String
+  chatroom    Chatroom @relation("ChatroomMessages", fields: [chatroom_id], references: [id], onDelete: Cascade)
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  score     Int?
+  review    String?
+  createdAt DateTime @default(now())
+  raterId   String
+  rater     User     @relation("RatingsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  rateeId   String
+  ratee     User     @relation("RatingsReceived", fields: [rateeId], references: [id], onDelete: Cascade)
+}
+
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("blockedBy", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("blocking", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reason      String?
+  chatHistory Json
+  logType     String   @default("CHAT_LOG") // CHAT_LOG or USER_REPORT
+  createdAt   DateTime @default(now())
+  reporterId  String?
+  reporter    User?    @relation("reporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  reportedId  String?
+  reported    User?    @relation("reported", fields: [reportedId], references: [id], onDelete: SetNull)
+}

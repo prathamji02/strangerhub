@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Report" ADD COLUMN     "logType" TEXT NOT NULL DEFAULT 'USER_REPORT';
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "isAdmin" BOOLEAN NOT NULL DEFAULT false;
