@@ -53,7 +53,7 @@ export default function LandingScreen({ onGetStarted }) {
         </header>
 
         {/* Hero Section */}
-        <main className="flex-grow flex flex-col items-center justify-center text-center px-4 pt-20 pb-32">
+        <main className="flex-grow flex flex-col items-center justify-center text-center px-4 pt-10 md:pt-20 pb-32">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -73,11 +73,36 @@ export default function LandingScreen({ onGetStarted }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-6xl md:text-8xl font-black tracking-tighter mb-6 leading-[1.1]"
+            className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-[1.1]"
           >
-            The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">Social Network</span> <br />
-            for GGSIPU.
+            Random Video Call & Chat <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+              with Strangers Within Your College
+            </span>
           </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mb-10 flex flex-col items-center gap-4"
+          >
+            <span className="inline-block px-6 py-3 rounded-full bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-yellow-500/50 text-xl md:text-2xl font-bold text-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.2)] backdrop-blur-md transform hover:scale-105 transition-transform duration-300">
+              ✨ Just Like Omegle
+            </span>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-medium"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-400">
+                <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
+              </svg>
+              Verified GGSIPU Students Only
+            </motion.div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0 }}
@@ -121,14 +146,7 @@ export default function LandingScreen({ onGetStarted }) {
             </button>
           </motion.div>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
-            className="mt-6 text-sm text-gray-500"
-          >
-            *Verified GGSIPU students only.
-          </motion.p>
+
         </main>
 
         {/* Features Grid */}
@@ -200,6 +218,9 @@ export default function LandingScreen({ onGetStarted }) {
         {/* Footer */}
         <footer className="py-8 text-center text-gray-600 text-sm border-t border-white/5">
           <p>&copy; 2025 IPU Friendlist. Built for students, by students.</p>
+          <p className="mt-4 text-sm md:text-base text-gray-400">
+            Have questions or feedback? Reach out to us at <a href="mailto:airaworld28@gmail.com" className="text-blue-400 hover:text-blue-300 transition-colors font-medium">airaworld28@gmail.com</a>
+          </p>
         </footer>
 
       </div>
