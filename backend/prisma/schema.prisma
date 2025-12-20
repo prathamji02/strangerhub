@@ -16,6 +16,7 @@ model User {
   email           String    @unique
   phone_no        String    @unique
   gender          String
+  college         String?   // New field for college matching
   fake_name       String?   @unique
   is_premium      Boolean   @default(false)
   status          String    @default("ACTIVE") // Can be ACTIVE, BANNED, FROZEN
@@ -88,4 +89,11 @@ model Report {
   reporter    User?    @relation("reporter", fields: [reporterId], references: [id], onDelete: SetNull)
   reportedId  String?
   reported    User?    @relation("reported", fields: [reportedId], references: [id], onDelete: SetNull)
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // e.g., "CONNECT", "DISCONNECT"
+  timestamp DateTime @default(now())
 }

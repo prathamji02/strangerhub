@@ -16,7 +16,7 @@ const adminProtect = async (req, res, next) => {
         try {
             const token = authHeader.split(' ')[1];
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            
+
             const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
             if (user && user.isAdmin) {
@@ -73,7 +73,7 @@ router.get('/users', adminProtect, async (req, res) => {
         const users = await prisma.user.findMany({
             select: {
                 id: true, name: true, fake_name: true, enrollment_no: true,
-                status: true, averageRating: true, ratingCount: true,email: true,phone_no: true, gender: true 
+                status: true, averageRating: true, ratingCount: true, email: true, phone_no: true, gender: true, college: true
             },
         });
         res.status(200).json(users);
@@ -93,7 +93,7 @@ router.post('/ban', adminProtect, async (req, res) => {
 
         // Determine the new status
         const newStatus = user.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
-        
+
         await prisma.user.update({
             where: { id: userId },
             data: { status: newStatus },
@@ -217,16 +217,16 @@ router.post('/message', adminProtect, async (req, res) => {
 
 // POST /api/admin/register
 router.post('/register', adminProtect, async (req, res) => {
-    const { enrollment_no, name, email, phone_no, gender } = req.body;
+    const { enrollment_no, name, email, phone_no, gender, college } = req.body;
     if (!enrollment_no || !name || !email || !phone_no || !gender) {
-        return res.status(400).json({ error: "All fields are required." });
+        return res.status(400).json({ error: "All fields except college are required." });
     }
     try {
         const newUser = await prisma.user.create({
-            data: { enrollment_no, name, email, phone_no, gender }
+            data: { enrollment_no, name, email, phone_no, gender, college }
         });
 
-         await sendWelcomeEmail(newUser.name, newUser.email, newUser.enrollment_no);
+        await sendWelcomeEmail(newUser.name, newUser.email, newUser.enrollment_no);
 
         res.status(201).json({ message: `User ${newUser.name} created successfully.` });
     } catch (error) {

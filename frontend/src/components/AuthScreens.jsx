@@ -82,7 +82,7 @@ export function OtpScreen({ handleVerify, otp, setOtp, message, loginUserInfo, s
     );
 }
 
-export function SetupScreen({ handleSetup, fakeName, setFakeName, isLoading }) {
+export function SetupScreen({ handleSetup, fakeName, setFakeName, college, setCollege, isLoading }) {
     return (
         <div className="bg-gray-900 text-white h-dvh flex items-center justify-center p-4 relative overflow-hidden">
             {/* Background Gradients */}
@@ -101,6 +101,22 @@ export function SetupScreen({ handleSetup, fakeName, setFakeName, isLoading }) {
                         required
                         className="w-full p-4 rounded-xl bg-black/30 border border-white/10 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-6 transition-all text-center text-lg"
                     />
+
+                    <select
+                        value={college || ''}
+                        onChange={(e) => setCollege(e.target.value)}
+                        required
+                        className="w-full p-4 rounded-xl bg-black/30 border border-white/10 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-6 transition-all text-center text-white appearance-none cursor-pointer"
+                    >
+                        <option value="" disabled className="text-gray-500">Select Your College</option>
+                        <option value="MAIT" className="bg-gray-900">MAIT</option>
+                        <option value="MSIT" className="bg-gray-900">MSIT</option>
+                        <option value="BVCOE" className="bg-gray-900">BVCOE</option>
+                        <option value="GTBIT" className="bg-gray-900">GTBIT</option>
+                        <option value="ADGITM" className="bg-gray-900">ADGITM</option>
+                        <option value="BPIT" className="bg-gray-900">BPIT</option>
+                        <option value="OTHERS" className="bg-gray-900">Others</option>
+                    </select>
                     <button
                         type="submit"
                         disabled={isLoading}

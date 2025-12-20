@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSocket } from '../contexts/SocketContext';
 
-const Home = ({ onFindMatch, onLogout, isAdmin, onNavigate }) => {
+const Home = ({ onFindMatch, onLogout, isAdmin, onNavigate, onShowActivity }) => {
     const { onlineCount } = useSocket();
 
     return (
@@ -39,6 +39,15 @@ const Home = ({ onFindMatch, onLogout, isAdmin, onNavigate }) => {
                             title="Saved Chats"
                         >
                             Saved Chats
+                        </button>
+                        <button
+                            onClick={onShowActivity}
+                            className="p-2 rounded-full bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 transition-all"
+                            title="Activity Graph"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
                         </button>
                         <button
                             onClick={onLogout}

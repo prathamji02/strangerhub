@@ -33,6 +33,14 @@ export const setupSocketHandlers = (io) => {
         io.emit('update_online_count', onlineUsers.size);
         console.log(`User ${userId} connected. Online: ${onlineUsers.size}`);
 
+        // Log activity
+        prisma.activityLog.create({
+            data: {
+                userId: userId,
+                action: 'CONNECT'
+            }
+        }).catch(err => console.error("Failed to log activity:", err));
+
         socket.on('find_match', async ({ mode }) => {
             // mode: 'chat', 'video', 'both'
             const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -49,28 +57,51 @@ export const setupSocketHandlers = (io) => {
             let potentialPartner = null;
             let partnerPool = null;
 
-            // Matching Logic
-            if (mode === 'chat') {
-                // Match with Chat or Both
-                potentialPartner = findPartner(chatPool, blockedUserIds) || findPartner(bothPool, blockedUserIds);
-                if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
-                else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
-            } else if (mode === 'video') {
-                // Match with Video or Both
-                potentialPartner = findPartner(videoPool, blockedUserIds) || findPartner(bothPool, blockedUserIds);
-                if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
-                else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
-            } else if (mode === 'both') {
-                // Match with Chat, Video, or Both (Prioritize Both, then Video, then Chat? Or just any?)
-                // Logic says: Both matches anyone.
-                // Let's try to match with Both first, then Video, then Chat (preference order can be adjusted)
-                potentialPartner = findPartner(bothPool, blockedUserIds) ||
-                    findPartner(videoPool, blockedUserIds) ||
-                    findPartner(chatPool, blockedUserIds);
+            // Helper to find partner in a pool
+            const find = (pool, requireCollege = false) => {
+                return pool.find(p => {
+                    const isBlocked = blockedUserIds.has(p.id);
+                    if (isBlocked) return false;
+                    if (requireCollege) return p.college === user.college;
+                    return true;
+                });
+            };
 
-                if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
-                else if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
-                else if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
+            // Matching Logic with College Priority
+            // 1. Try finding a partner with SAME COLLEGE
+            if (user.college) {
+                if (mode === 'chat') {
+                    potentialPartner = find(chatPool, true) || find(bothPool, true);
+                    if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
+                    else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                } else if (mode === 'video') {
+                    potentialPartner = find(videoPool, true) || find(bothPool, true);
+                    if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
+                    else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                } else if (mode === 'both') {
+                    potentialPartner = find(bothPool, true) || find(videoPool, true) || find(chatPool, true);
+                    if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                    else if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
+                    else if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
+                }
+            }
+
+            // 2. Fallback to ANY COLLEGE if no same-college match found
+            if (!potentialPartner) {
+                if (mode === 'chat') {
+                    potentialPartner = find(chatPool) || find(bothPool);
+                    if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
+                    else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                } else if (mode === 'video') {
+                    potentialPartner = find(videoPool) || find(bothPool);
+                    if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
+                    else if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                } else if (mode === 'both') {
+                    potentialPartner = find(bothPool) || find(videoPool) || find(chatPool);
+                    if (potentialPartner && bothPool.includes(potentialPartner)) partnerPool = bothPool;
+                    else if (potentialPartner && videoPool.includes(potentialPartner)) partnerPool = videoPool;
+                    else if (potentialPartner && chatPool.includes(potentialPartner)) partnerPool = chatPool;
+                }
             }
 
             if (potentialPartner) {

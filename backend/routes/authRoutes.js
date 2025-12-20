@@ -138,9 +138,9 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
-// Route 3: /api/auth/setup-profile - Set the user's fake name
-router.post('/setup-profile', protect, async (req, res) => {
-  const { fake_name } = req.body;
+// Route 3: /api/auth/setup - Set the user's fake name and college
+router.post('/setup', protect, async (req, res) => {
+  const { fake_name, college } = req.body;
   const userId = req.user.id;
 
   if (!fake_name || fake_name.length < 3) {
@@ -149,13 +149,13 @@ router.post('/setup-profile', protect, async (req, res) => {
 
   try {
     const existingUser = await prisma.user.findUnique({ where: { fake_name } });
-    if (existingUser) {
+    if (existingUser && existingUser.id !== userId) {
       return res.status(400).json({ error: 'This alias is already taken. Please choose another.' });
     }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { fake_name },
+      data: { fake_name, college },
     });
 
     res.status(200).json({ message: 'Profile setup complete!', user: { fake_name: updatedUser.fake_name } });

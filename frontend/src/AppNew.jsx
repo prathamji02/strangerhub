@@ -11,6 +11,7 @@ import AdminDashboard from './components/AdminDashboard';
 import LandingScreen from './components/LandingScreen';
 import ResizableLayout from './components/ResizableLayout';
 import SavedChatsScreen from './components/SavedChatsScreen';
+import ActivityGraphModal from './components/ActivityGraphModal';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const api = axios.create({ baseURL: API_URL });
@@ -20,6 +21,7 @@ function AppContent() {
     const [enrollmentNo, setEnrollmentNo] = useState('');
     const [otp, setOtp] = useState('');
     const [fakeName, setFakeName] = useState('');
+    const [college, setCollege] = useState('');
     const [loginUserInfo, setLoginUserInfo] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
@@ -42,6 +44,7 @@ function AppContent() {
     const [ratingPartnerId, setRatingPartnerId] = useState(null);
     const [ratingPartnerName, setRatingPartnerName] = useState('');
     const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
+    const [showActivityGraph, setShowActivityGraph] = useState(false);
 
     const { socket } = useSocket();
     const videoContext = useVideo();
@@ -230,7 +233,7 @@ function AppContent() {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await api.post('/auth/setup', { fake_name: fakeName });
+            await api.post('/auth/setup', { fake_name: fakeName, college });
             setView('home');
         } catch (error) {
             toast.error('Failed to save alias');
@@ -398,7 +401,7 @@ function AppContent() {
         if (view === 'loading') return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white"><Spinner /></div>;
         if (view === 'login') return <LoginScreen handleLogin={handleLogin} enrollmentNo={enrollmentNo} setEnrollmentNo={setEnrollmentNo} message={message} isLoading={isLoading} onNavigate={setView} />;
         if (view === 'otp') return <OtpScreen handleVerify={handleVerify} otp={otp} setOtp={setOtp} message={message} loginUserInfo={loginUserInfo} setView={setView} isLoading={isLoading} />;
-        if (view === 'setup') return <SetupScreen handleSetup={handleSetup} fakeName={fakeName} setFakeName={setFakeName} isLoading={isLoading} />;
+        if (view === 'setup') return <SetupScreen handleSetup={handleSetup} fakeName={fakeName} setFakeName={setFakeName} college={college} setCollege={setCollege} isLoading={isLoading} />;
 
         if (view === 'waiting') {
             return (
@@ -487,12 +490,14 @@ function AppContent() {
             return <AdminDashboard onBack={() => setView('home')} />;
         }
 
-        return <Home onFindMatch={handleFindMatch} onLogout={handleLogout} isAdmin={isAdmin} onNavigate={setView} />;
+        return <Home onFindMatch={handleFindMatch} onLogout={handleLogout} isAdmin={isAdmin} onNavigate={setView} onShowActivity={() => setShowActivityGraph(true)} />;
     };
 
     return (
         <>
             {renderView()}
+
+            <ActivityGraphModal isOpen={showActivityGraph} onClose={() => setShowActivityGraph(false)} />
 
             {/* Global Rating Modal */}
             {showRatingModal && (

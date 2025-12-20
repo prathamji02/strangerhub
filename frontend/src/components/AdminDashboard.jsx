@@ -26,7 +26,7 @@ export default function AdminDashboard({ onBack }) {
     const [userChats, setUserChats] = useState([]);
     const [file, setFile] = useState(null);
     const [uploadMessage, setUploadMessage] = useState('');
-    const [newUser, setNewUser] = useState({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '' });
+    const [newUser, setNewUser] = useState({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '', college: '' });
     const [registerMessage, setRegisterMessage] = useState('');
     const [modal, setModal] = useState({ type: null, data: null });
     const [freezeDuration, setFreezeDuration] = useState(7);
@@ -156,7 +156,7 @@ export default function AdminDashboard({ onBack }) {
             const { data } = await api.post('/admin/register', newUser, { headers: { Authorization: `Bearer ${token}` } });
             setRegisterMessage(data.message);
             toast.success(data.message);
-            setNewUser({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '' });
+            setNewUser({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '', college: '' });
             fetchData('users');
         } catch (error) {
             const err = error.response?.data?.error || 'Registration failed.';
@@ -240,6 +240,7 @@ export default function AdminDashboard({ onBack }) {
                                 <p><strong>Email:</strong> {selectedItem.email}</p>
                                 <p><strong>Phone No:</strong> {selectedItem.phone_no}</p>
                                 <p><strong>Gender:</strong> {selectedItem.gender}</p>
+                                <p><strong>College:</strong> {selectedItem.college || 'N/A'}</p>
                                 <h2 className="text-xl font-bold mt-4 mb-2">Friend List ({userChats.length})</h2>
                                 <div className="bg-gray-700 p-3 rounded h-48 overflow-y-auto">
                                     {userChats.length > 0 ? (
@@ -319,6 +320,21 @@ export default function AdminDashboard({ onBack }) {
                                 <input value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} placeholder="Email" type="email" className="p-2 bg-gray-700 rounded" required />
                                 <input value={newUser.phone_no} onChange={e => setNewUser({ ...newUser, phone_no: e.target.value })} placeholder="Phone No" className="p-2 bg-gray-700 rounded" required />
                                 <input value={newUser.gender} onChange={e => setNewUser({ ...newUser, gender: e.target.value })} placeholder="Gender" className="p-2 bg-gray-700 rounded" required />
+                                <select
+                                    value={newUser.college || ''}
+                                    onChange={e => setNewUser({ ...newUser, college: e.target.value })}
+                                    className="p-2 bg-gray-700 rounded text-white"
+                                    required
+                                >
+                                    <option value="" disabled>Select College</option>
+                                    <option value="MAIT">MAIT</option>
+                                    <option value="MSIT">MSIT</option>
+                                    <option value="BVCOE">BVCOE</option>
+                                    <option value="GTBIT">GTBIT</option>
+                                    <option value="ADGITM">ADGITM</option>
+                                    <option value="BPIT">BPIT</option>
+                                    <option value="OTHERS">Others</option>
+                                </select>
                                 <button type="submit" className="p-2 rounded bg-green-600 font-bold hover:bg-green-700">Register User</button>
                             </form>
                             {registerMessage && <p className="mt-2 text-sm">{registerMessage}</p>}
