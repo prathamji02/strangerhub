@@ -4,18 +4,27 @@ const VideoCall = ({ stream, isLocal }) => {
     const videoRef = useRef();
 
     useEffect(() => {
-        if (videoRef.current && stream) {
-            // Prevent re-setting the same stream to avoid AbortError
-            if (videoRef.current.srcObject && videoRef.current.srcObject.id === stream.id) {
-                console.log('VideoCall: Stream already set, skipping');
+        const videoEl = videoRef.current;
+        if (videoEl && stream) {
+            // Prevent re-setting the same stream
+            if (videoEl.srcObject && videoEl.srcObject.id === stream.id) {
                 return;
             }
 
             console.log('VideoCall: Setting srcObject', stream.id);
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(e => console.error('VideoCall: Play failed', e));
-        } else {
-            console.log('VideoCall: No stream or ref');
+            videoEl.srcObject = stream;
+
+            const playPromise = videoEl.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    if (error.name === 'AbortError') {
+                        console.log('VideoCall: Play logic aborted (harmless)');
+                    } else {
+                        console.error('VideoCall: Play failed', error);
+                    }
+                });
+            }
         }
     }, [stream]);
 

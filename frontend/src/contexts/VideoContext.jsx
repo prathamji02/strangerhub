@@ -207,7 +207,7 @@ export const VideoProvider = ({ children }) => {
         socket.emit('offer', { roomId, offer });
     };
 
-    const value = {
+    const value = React.useMemo(() => ({
         stream,
         remoteStream,
         myVideo,
@@ -217,7 +217,7 @@ export const VideoProvider = ({ children }) => {
         stopVideo,
         initiateCall,
         connectionRef
-    };
+    }), [stream, remoteStream, callAccepted, callEnded, socket]);
 
     console.log('VideoProvider: Providing value', value);
 

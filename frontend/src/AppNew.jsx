@@ -16,6 +16,25 @@ import ActivityGraphModal from './components/ActivityGraphModal';
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const api = axios.create({ baseURL: API_URL });
 
+const ResponsiveLayout = ({ left, center, right }) => {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return (
+        <ResizableLayout
+            left={left}
+            center={center}
+            right={right}
+            orientation={isMobile ? 'vertical' : 'horizontal'}
+        />
+    );
+};
+
 function AppContent() {
     const [view, setView] = useState('landing');
     const [enrollmentNo, setEnrollmentNo] = useState('');
@@ -463,25 +482,11 @@ function AppContent() {
             // Video / Both Mode (3-Part Layout)
             return (
                 <div className="h-dvh w-full bg-black overflow-hidden">
-                    {/* Mobile: Resizable Vertical (Hidden on Desktop) */}
-                    <div className="block md:hidden h-full w-full">
-                        <ResizableLayout
-                            left={LocalVideoSection}
-                            center={RemoteVideoSection}
-                            right={ChatSection}
-                            orientation="vertical"
-                        />
-                    </div>
-
-                    {/* Desktop: Resizable Horizontal (Hidden on Mobile) */}
-                    <div className="hidden md:block h-full w-full">
-                        <ResizableLayout
-                            left={LocalVideoSection}
-                            center={RemoteVideoSection}
-                            right={ChatSection}
-                            orientation="horizontal"
-                        />
-                    </div>
+                    <ResponsiveLayout
+                        left={LocalVideoSection}
+                        center={RemoteVideoSection}
+                        right={ChatSection}
+                    />
                 </div>
             );
         }
