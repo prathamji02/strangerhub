@@ -94,6 +94,10 @@ router.get('/', protect, async (req, res) => {
                     },
                     select: {
                         fake_name: true,
+                        gender: true,
+                        college: true,
+                        averageRating: true,
+                        ratingCount: true,
                     },
                 },
             },

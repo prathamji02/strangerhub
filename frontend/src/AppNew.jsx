@@ -267,7 +267,7 @@ function AppContent() {
         toast.loading("Request sent to stranger...", { duration: 2000 });
     };
 
-    const openPersistentChat = async (chatId, partnerName) => {
+    const openPersistentChat = async (chatId, partnerInfo) => {
         try {
             const { data } = await api.get(`/chats/${chatId}/messages`);
             const formattedMessages = data.map(msg => ({
@@ -277,7 +277,7 @@ function AppContent() {
             }));
 
             setChatMessages(formattedMessages);
-            setPartnerInfo({ fake_name: partnerName });
+            setPartnerInfo(partnerInfo);
             setViewingChatId(chatId);
 
             if (socket) {
@@ -442,11 +442,6 @@ function AppContent() {
             return (
                 <div className="h-dvh w-full bg-gray-900 flex flex-col">
                     <div className="flex-1 overflow-hidden relative">
-                        <div className="absolute top-4 left-4 z-10">
-                            <button onClick={() => setView('saved_chats')} className="bg-gray-700 text-white px-4 py-2 rounded-full text-sm hover:bg-gray-600">
-                                &larr; Back
-                            </button>
-                        </div>
                         <TextChat
                             roomId={viewingChatId}
                             partnerInfo={partnerInfo}
@@ -454,6 +449,7 @@ function AppContent() {
                             onSendMessage={handleSendPersistentMessage}
                             onSkip={() => setView('saved_chats')}
                             isPersistentChat={true}
+                            onBack={() => setView('saved_chats')}
                         />
                     </div>
                 </div>

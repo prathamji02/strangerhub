@@ -15,7 +15,7 @@ export default function SavedChatsScreen({ setView, openPersistentChat, api, soc
         });
         const formattedChats = data.map((chat) => ({
           id: chat.id,
-          partnerName: chat.participants[0]?.fake_name || 'A Stranger',
+          partnerInfo: chat.participants[0] || { fake_name: 'A Stranger' },
         }));
         setChats(formattedChats);
       } catch (err) {
@@ -61,8 +61,8 @@ export default function SavedChatsScreen({ setView, openPersistentChat, api, soc
           {!loading && !error && (
             <ul className="divide-y divide-gray-700">
               {chats.map((chat) => (
-                <li key={chat.id} onClick={() => openPersistentChat(chat.id, chat.partnerName)} className="p-4 hover:bg-gray-700 cursor-pointer transition-colors flex justify-between items-center">
-                  <span>Chat with <span className="font-bold text-blue-400">{chat.partnerName}</span></span>
+                <li key={chat.id} onClick={() => openPersistentChat(chat.id, chat.partnerInfo)} className="p-4 hover:bg-gray-700 cursor-pointer transition-colors flex justify-between items-center">
+                  <span>Chat with <span className="font-bold text-blue-400">{chat.partnerInfo.fake_name}</span></span>
                   <button
                     onClick={(e) => handleDelete(e, chat.id)}
                     className="text-red-500 hover:text-red-400 p-2"

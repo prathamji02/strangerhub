@@ -8,7 +8,7 @@ const formatTime = (date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const TextChat = ({ roomId, partnerInfo, chatMessages, onSendMessage, onSkip, isPersistentChat, onSaveChat }) => {
+const TextChat = ({ roomId, partnerInfo, chatMessages, onSendMessage, onSkip, isPersistentChat, onSaveChat, onBack }) => {
     const [currentMessage, setCurrentMessage] = useState('');
     const chatEndRef = useRef(null);
     const { socket } = useSocket();
@@ -104,6 +104,14 @@ const TextChat = ({ roomId, partnerInfo, chatMessages, onSendMessage, onSkip, is
             {/* Header */}
             <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center backdrop-blur-md z-10">
                 <div className="flex items-center gap-3">
+                    {/* Back Button for Saved Chats */}
+                    {onBack && (
+                        <button onClick={onBack} className="mr-1 p-2 rounded-full hover:bg-white/10 text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                            </svg>
+                        </button>
+                    )}
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
                         {partnerInfo?.fake_name?.charAt(0).toUpperCase() || '?'}
                     </div>
