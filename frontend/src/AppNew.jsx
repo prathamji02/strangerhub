@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Analytics } from "@vercel/analytics/react";
 import axios from 'axios';
 import { Toaster, toast } from 'react-hot-toast';
 import { SocketProvider, useSocket } from './contexts/SocketContext';
@@ -569,6 +570,7 @@ export default function AppNew() {
             <VideoProvider>
                 <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
                 <AppContent />
+                <Analytics />
             </VideoProvider>
         </SocketProvider>
     );
