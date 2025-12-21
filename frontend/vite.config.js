@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.png'],
       manifest: {
-        name: 'StrangerHub',
-        short_name: 'StrangerHub',
+        name: 'IPU Friendlist',
+        short_name: 'IPU Friendlist',
         description: 'Connect with strangers from your college.',
         theme_color: '#000000',
         background_color: '#000000',
@@ -23,12 +23,7 @@ export default defineConfig({
         orientation: 'portrait',
         icons: [
           {
-            src: 'android-chrome-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'android-chrome-512x512.png',
+            src: 'logo.png',
             sizes: '512x512',
             type: 'image/png'
           }

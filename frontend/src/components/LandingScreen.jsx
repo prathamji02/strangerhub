@@ -102,7 +102,7 @@ export default function LandingScreen({ onGetStarted }) {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-[1.1]"
           >
-            Random Video Call & Chat <br />
+            Random Video Call & Anonymous Chat <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
               with Strangers Within Your College
             </span>
@@ -180,33 +180,35 @@ export default function LandingScreen({ onGetStarted }) {
             className="mt-8 flex flex-col items-center gap-3"
           >
             <div className="flex gap-4">
-              {deferredPrompt && (
-                <button
-                  onClick={handleInstallClick}
-                  className="flex items-center gap-2 px-6 py-2 rounded-full bg-green-600/20 border border-green-500/50 text-green-400 font-bold hover:bg-green-600/30 transition-all"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                    <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
-                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
-                  </svg>
-                  Install App
-                </button>
-              )}
-
+              {/* Primary Download App Button */}
               <a
-                href="/strangerhub.apk"
-                download
-                className="flex items-center gap-2 px-6 py-2 rounded-full bg-gray-600/20 border border-gray-500/50 text-gray-400 font-bold hover:bg-gray-600/30 transition-all"
+                href="/IPU-Friendlist.apk"
+                download="IPU-Friendlist.apk"
+                className="px-8 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg hover:shadow-[0_0_40px_-10px_rgba(124,58,237,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                   <path fillRule="evenodd" d="M2 3.75A.75.75 0 012.75 3h14.5a.75.75 0 01.75.75v3a.75.75 0 01-.75.75h-.39l-.766 5.618a.75.75 0 01-.745.648H3.652a.75.75 0 01-.745-.648L2.14 7.5H1.75a.75.75 0 01-.75-.75v-3zM7 6V4h6v2H7z" clipRule="evenodd" />
                   <path fillRule="evenodd" d="M11 13a1 1 0 10-2 0 1 1 0 002 0z" clipRule="evenodd" />
                 </svg>
-                Download APK
+                Download App
               </a>
+
+              {/* Secondary PWA Install Button (if available) */}
+              {deferredPrompt && (
+                <button
+                  onClick={handleInstallClick}
+                  className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 hover:border-white/20 transition-all flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                  </svg>
+                  Install Web App
+                </button>
+              )}
             </div>
-            <p className="text-xs text-gray-500 max-w-xs">
-              Tap "Install App" for the best experience. <br /> Or download the APK if you prefer (Android Only).
+            <p className="text-xs text-gray-500 max-w-xs mt-2">
+              Download the APK for Android or install the web app directly.
             </p>
           </motion.div>
 
@@ -258,7 +260,7 @@ export default function LandingScreen({ onGetStarted }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-bold mb-3 text-white">Video & Chat</h3>
+              <h3 className="text-2xl font-bold mb-3 text-white">Video & Anonymous Chat</h3>
               <p className="text-gray-400 leading-relaxed">
                 Text with strangers or jump into a video call. Connect instantly with students on campus.
               </p>
