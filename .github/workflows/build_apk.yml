@@ -1,4 +1,4 @@
-name: Build Android APK (V4 Update)
+name: Build Android APK (Node 22 Fix)
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
