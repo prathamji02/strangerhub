@@ -1,4 +1,4 @@
-name: Build Android APK (Permissions Fix)
+name: Build Android APK (Java 21 Fix)
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
