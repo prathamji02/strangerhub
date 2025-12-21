@@ -180,19 +180,6 @@ export default function LandingScreen({ onGetStarted }) {
             className="mt-8 flex flex-col items-center gap-3"
           >
             <div className="flex gap-4">
-              {/* Primary Download App Button */}
-              <a
-                href="/IPU-Friendlist.apk"
-                download="IPU-Friendlist.apk"
-                className="px-8 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg hover:shadow-[0_0_40px_-10px_rgba(124,58,237,0.5)] hover:scale-105 transition-all duration-300 flex items-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                  <path fillRule="evenodd" d="M2 3.75A.75.75 0 012.75 3h14.5a.75.75 0 01.75.75v3a.75.75 0 01-.75.75h-.39l-.766 5.618a.75.75 0 01-.745.648H3.652a.75.75 0 01-.745-.648L2.14 7.5H1.75a.75.75 0 01-.75-.75v-3zM7 6V4h6v2H7z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M11 13a1 1 0 10-2 0 1 1 0 002 0z" clipRule="evenodd" />
-                </svg>
-                Download App
-              </a>
-
               {/* Secondary PWA Install Button (if available) */}
               {deferredPrompt && (
                 <button
@@ -207,9 +194,6 @@ export default function LandingScreen({ onGetStarted }) {
                 </button>
               )}
             </div>
-            <p className="text-xs text-gray-500 max-w-xs mt-2">
-              Download the APK for Android or install the web app directly.
-            </p>
           </motion.div>
 
 
