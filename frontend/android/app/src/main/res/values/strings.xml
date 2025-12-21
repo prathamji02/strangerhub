@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">StrangerHub</string>
-    <string name="title_activity_main">StrangerHub</string>
+    <string name="app_name">IPU Friendlist</string>
+    <string name="title_activity_main">IPU Friendlist</string>
     <string name="package_name">com.strangerhub.app</string>
     <string name="custom_url_scheme">com.strangerhub.app</string>
 </resources>
