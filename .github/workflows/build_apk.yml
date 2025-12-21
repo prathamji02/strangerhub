@@ -1,4 +1,4 @@
-name: Build Android APK (Node 22 Fix)
+name: Build Android APK (Permissions Fix)
 
 on:
   push:
@@ -40,7 +40,9 @@ jobs:
 
       - name: Build APK with Gradle
         working-directory: ./frontend/android
-        run: ./gradlew assembleDebug
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
