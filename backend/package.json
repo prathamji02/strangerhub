@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "migrate": "prisma db push",
-    "start": "npm run migrate && node server.js",
+    "start": "chmod +x node_modules/.bin/prisma && npm run migrate && node server.js",
     "build": "echo 'Build step complete.'",
     "postinstall": "node node_modules/prisma/build/index.js generate"
   },
