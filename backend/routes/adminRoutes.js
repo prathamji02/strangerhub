@@ -82,6 +82,35 @@ router.get('/users', adminProtect, async (req, res) => {
     }
 });
 
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', adminProtect, async (req, res) => {
+    const { id } = req.params;
+    try {
+        await prisma.user.delete({ where: { id } });
+        res.status(200).json({ message: 'User deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete user.' });
+    }
+});
+
+// PUT /api/admin/users/:id - Update user details
+router.put('/users/:id', adminProtect, async (req, res) => {
+    const { id } = req.params;
+    const { name, fake_name, enrollment_no, email, phone_no, gender, college } = req.body;
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: { name, fake_name, enrollment_no, email, phone_no, gender, college },
+        });
+        res.status(200).json({ message: 'User updated successfully.', user: updatedUser });
+    } catch (error) {
+        if (error.code === 'P2002') {
+            return res.status(400).json({ error: 'Enrollment number or Email already exists.' });
+        }
+        res.status(500).json({ error: 'Failed to update user.' });
+    }
+});
+
 // POST /api/admin/ban - Toggles a user's status between BANNED and ACTIVE
 router.post('/ban', adminProtect, async (req, res) => {
     const { userId } = req.body;

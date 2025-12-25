@@ -62,31 +62,36 @@ router.get('/stats', async (req, res) => {
 // Run every 24 hours (86400000 ms) or 1 hour (3600000 ms)
 const CLEANUP_INTERVAL = 3600000; // 1 Hour
 
-const cleanupOldLogs = async () => {
-    try {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const deleted = await prisma.activityLog.deleteMany({
-            where: {
-                timestamp: {
-                    lt: sevenDaysAgo
-                }
-            }
-        });
-
-        if (deleted.count > 0) {
-            console.log(`[ActivityLog] Cleaned up ${deleted.count} old records.`);
-        }
-    } catch (error) {
-        console.error('Error cleaning up activity logs:', error);
-    }
-};
+// const cleanupOldLogs = async () => {
+//     try {
+//         const sevenDaysAgo = new Date();
+//         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+//
+//         const deleted = await prisma.activityLog.deleteMany({
+//             where: {
+//                 timestamp: {
+//                     lt: sevenDaysAgo
+//                 }
+//             }
+//         });
+//
+//         if (deleted.count > 0) {
+//             console.log(`[ActivityLog] Cleaned up ${deleted.count} old records.`);
+//         }
+//     } catch (error) {
+//         console.error('[ActivityLog] Cleanup failed:', error);
+//     }
+// };
+//
+// // setInterval(cleanupOldLogs, CLEANUP_INTERVAL);
+//     } catch (error) {
+//     console.error('Error cleaning up activity logs:', error);
+// }
+// };
 
 // Initial cleanup on server start
-cleanupOldLogs();
+// cleanupOldLogs();
 
 // Schedule periodic cleanup
-setInterval(cleanupOldLogs, CLEANUP_INTERVAL);
 
 export default router;
