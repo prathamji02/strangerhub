@@ -35,35 +35,8 @@ const ActivityGraphModal = ({ isOpen, onClose }) => {
             }
 
             if (rawData.length === 0) {
-                // Generate Synthetic Data for the last 7 days
-                const now = new Date();
-                for (let i = 0; i < 7; i++) {
-                    const day = new Date(now);
-                    day.setDate(now.getDate() - i);
-
-                    // Generate hourly data for each day
-                    for (let hour = 0; hour < 24; hour++) {
-                        // Create a realistic daily pattern
-                        // Sleep time (0-6): Low
-                        // Morning (7-11): Rising
-                        // Afternoon (12-17): Steady/High
-                        // Evening (18-23): Peak
-
-                        let baseCount = 0;
-                        if (hour >= 0 && hour < 6) baseCount = Math.random() * 10;
-                        else if (hour >= 6 && hour < 12) baseCount = 10 + Math.random() * 30;
-                        else if (hour >= 12 && hour < 18) baseCount = 30 + Math.random() * 40;
-                        else baseCount = 50 + Math.random() * 80; // Peak time
-
-                        const timePoint = new Date(day);
-                        timePoint.setHours(hour, 0, 0, 0);
-
-                        rawData.push({
-                            count: Math.floor(baseCount),
-                            timestamp: timePoint.getTime()
-                        });
-                    }
-                }
+                // No data available - show empty state instead of synthetic data
+                // rawData remains empty
             }
 
             setAllData(rawData);
@@ -105,10 +78,25 @@ const ActivityGraphModal = ({ isOpen, onClose }) => {
 
     }, [allData, selectedDate]);
 
+    const minDate = useMemo(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
+
+    const isMinDateReached = (date) => {
+        const current = new Date(date);
+        current.setHours(0, 0, 0, 0);
+        return current <= minDate;
+    };
+
     const handlePrevDay = () => {
         const newDate = new Date(selectedDate);
         newDate.setDate(selectedDate.getDate() - 1);
-        setSelectedDate(newDate);
+        if (newDate >= minDate) {
+            setSelectedDate(newDate);
+        }
     };
 
     const handleNextDay = () => {
@@ -190,7 +178,8 @@ const ActivityGraphModal = ({ isOpen, onClose }) => {
                             <div className="flex items-center justify-between w-full md:w-auto gap-4 bg-white/5 rounded-xl md:rounded-full px-4 py-3 md:py-2 border border-white/5">
                                 <button
                                     onClick={handlePrevDay}
-                                    className="p-2 md:p-1 text-gray-400 hover:text-white transition-colors active:scale-95"
+                                    disabled={isMinDateReached(selectedDate)}
+                                    className={`p-2 md:p-1 transition-colors active:scale-95 ${isMinDateReached(selectedDate) ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 md:w-5 md:h-5">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
