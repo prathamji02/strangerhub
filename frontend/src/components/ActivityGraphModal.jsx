@@ -23,7 +23,7 @@ const ActivityGraphModal = ({ isOpen, onClose }) => {
             let rawData = [];
 
             try {
-                const response = await axios.get(`${API_URL}/api/activity/stats`);
+                const response = await axios.get(`${API_URL}/activity/stats`);
                 if (response.data && response.data.length > 0) {
                     rawData = response.data.map(item => ({
                         count: item.count,
