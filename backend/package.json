@@ -7,7 +7,7 @@
     "dev": "nodemon server.js",
     "migrate": "npx prisma db push",
     "start": "npm run migrate && node server.js",
-    "build": "npx prisma generate"
+    "build": "tsc -b"
   },
   "dependencies": {
     "@prisma/client": "^5.15.0",
