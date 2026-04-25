@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const API_URL = 'http://192.168.0.197:3000/api';
-const SOCKET_URL = 'http://192.168.0.197:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
 
 export const api = axios.create({ baseURL: API_URL });
 

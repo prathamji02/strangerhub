@@ -40,7 +40,11 @@ export const sendWelcomeEmail = async (userName, userEmail, userEnrollmentNo) =>
             <p>Welcome to IPU Friendlist! Your account has been created, and we're excited for you to join our exclusive community at GTBIT.</p>
             
             <h3>Your First Login</h3>
-            <p>You may now proceed to log in. On your first login, you will be prompted to create your permanent, anonymous alias (your "fake name"). This is how others will see you, so choose wisely!</p>
+            <p>You may now proceed to log in using your enrollment number to generate an OTP (One-Time Password). Your registered enrollment number is:</p>
+            <div style="background-color: #f3f4f6; padding: 10px; border-radius: 5px; font-size: 18px; font-weight: bold; text-align: center; margin: 15px 0;">
+                ${userEnrollmentNo}
+            </div>
+            <p>On your first login, you will also be prompted to create your permanent, anonymous alias (your "fake name"). This is how others will see you, so choose wisely!</p>
             
             <h3 style="margin-top: 30px;">How It Works</h3>
             <p>From now on, you can chat with random, verified strangers from within your campus. Here’s what you need to know:</p>

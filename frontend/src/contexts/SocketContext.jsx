@@ -3,7 +3,12 @@ import { io } from 'socket.io-client';
 
 const SocketContext = createContext();
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '/';
+// Construct Socket.io URL using the same protocol and host as the page, but connect to backend port
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || (() => {
+    const protocol = window.location.protocol; // https: or http:
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:3000`;
+})();
 
 export const useSocket = () => useContext(SocketContext);
 

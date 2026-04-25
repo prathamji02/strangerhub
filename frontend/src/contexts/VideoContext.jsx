@@ -35,12 +35,13 @@ export const VideoProvider = ({ children }) => {
     const connectionRef = useRef();
     const roomIdRef = useRef(null);
     const streamRef = useRef(null);
+    const callStartTimeRef = useRef(null);
+    const durationIntervalRef = useRef(null);
 
     useEffect(() => {
         if (!socket) return;
 
         const handleChatStarted = ({ roomId }) => {
-            console.log('VideoContext: chat_started', roomId);
             roomIdRef.current = roomId;
             setCallEnded(false);
             setCallAccepted(false);
@@ -48,7 +49,12 @@ export const VideoProvider = ({ children }) => {
         };
 
         const handleChatEnded = () => {
-            console.log('VideoContext: chat_ended');
+            // Clean up duration interval
+            if (durationIntervalRef.current) {
+                clearInterval(durationIntervalRef.current);
+                durationIntervalRef.current = null;
+            }
+            callStartTimeRef.current = null;
             roomIdRef.current = null;
             setCallAccepted(false);
             setCallEnded(true);
@@ -62,7 +68,6 @@ export const VideoProvider = ({ children }) => {
         };
 
         const handleOffer = async ({ offer, roomId }) => {
-            console.log('VideoContext: Received offer', { roomId });
             // Use received roomId if available, fallback to ref
             const currentRoomId = roomId || roomIdRef.current;
 
@@ -84,7 +89,6 @@ export const VideoProvider = ({ children }) => {
             // 2. Wait for local stream to be ready (max 5 seconds)
             let attempts = 0;
             while (!streamRef.current && attempts < 50) {
-                console.log('VideoContext: Waiting for local stream...');
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
@@ -102,13 +106,11 @@ export const VideoProvider = ({ children }) => {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            console.log('VideoContext: Sending answer');
             socket.emit('answer', { roomId: currentRoomId, answer });
             setCallAccepted(true);
         };
 
         const handleAnswer = async ({ answer, roomId }) => {
-            console.log('VideoContext: Received answer');
             if (connectionRef.current) {
                 await connectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
                 setCallAccepted(true);
@@ -116,7 +118,6 @@ export const VideoProvider = ({ children }) => {
         };
 
         const handleIceCandidate = async ({ candidate, roomId }) => {
-            console.log('VideoContext: Received ICE candidate');
             if (connectionRef.current) {
                 try {
                     await connectionRef.current.addIceCandidate(candidate);
@@ -126,11 +127,27 @@ export const VideoProvider = ({ children }) => {
             }
         };
 
+        const handleCallDuration = ({ callDurationSeconds }) => {
+            // This event is sent when call naturally ends
+            // The parent component will handle showing the summary modal
+        };
+
+        const handleCallWarningFinalMinute = () => {
+            toast.warning('⏱️ You have 1 minute left in this call!', { duration: 5000 });
+        };
+
+        const handleForcedDisconnect = () => {
+            toast.error('⏰ Call time limit reached! Disconnecting...', { duration: 3000 });
+        };
+
         socket.on('chat_started', handleChatStarted);
         socket.on('chat_ended', handleChatEnded);
         socket.on('offer', handleOffer);
         socket.on('answer', handleAnswer);
         socket.on('ice-candidate', handleIceCandidate);
+        socket.on('call_duration', handleCallDuration);
+        socket.on('call_warning_final_minute', handleCallWarningFinalMinute);
+        socket.on('forced_disconnect', handleForcedDisconnect);
 
         return () => {
             socket.off('chat_started', handleChatStarted);
@@ -138,45 +155,93 @@ export const VideoProvider = ({ children }) => {
             socket.off('offer', handleOffer);
             socket.off('answer', handleAnswer);
             socket.off('ice-candidate', handleIceCandidate);
+            socket.off('call_duration', handleCallDuration);
+            socket.off('call_warning_final_minute', handleCallWarningFinalMinute);
+            socket.off('forced_disconnect', handleForcedDisconnect);
         };
     }, [socket]);
 
+    // Call duration tracking useEffect
+    useEffect(() => {
+        if (!callAccepted || !socket || !roomIdRef.current) return;
+
+        // Set call start time if not already set
+        if (!callStartTimeRef.current) {
+            callStartTimeRef.current = Date.now();
+        }
+
+        // Emit call duration every 30 seconds
+        const interval = setInterval(() => {
+            const currentDurationSeconds = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
+            socket.emit('call_duration_update', {
+                roomId: roomIdRef.current,
+                currentDurationSeconds
+            });
+        }, 30000); // Every 30 seconds
+
+        durationIntervalRef.current = interval;
+
+        return () => {
+            if (durationIntervalRef.current) {
+                clearInterval(durationIntervalRef.current);
+            }
+        };
+    }, [callAccepted, socket]);
+
     const createPeerConnection = (currentSocket, roomId) => {
-        console.log('VideoContext: Creating PeerConnection');
         const peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log('VideoContext: Sending ICE candidate');
                 currentSocket.emit('ice-candidate', { roomId, candidate: event.candidate });
             }
         };
 
         peerConnection.ontrack = (event) => {
-            console.log('VideoContext: Track received', event.streams[0]);
             setRemoteStream(event.streams[0]);
         };
 
         peerConnection.oniceconnectionstatechange = () => {
-            console.log('VideoContext: ICE State Change:', peerConnection.iceConnectionState);
         };
 
         return peerConnection;
     };
 
     const startVideo = async () => {
-        console.log('VideoContext: startVideo called. Requesting permissions...');
         try {
-            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            console.log('VideoContext: Media access granted. Stream ID:', currentStream.id);
+            
+            // Simple approach - just ask for video and audio without constraints
+            // This works better on mobile and HTTP connections
+            const currentStream = await navigator.mediaDevices.getUserMedia({ 
+                video: true, 
+                audio: true 
+            });
+            
+            
             setStream(currentStream);
             streamRef.current = currentStream;
             if (myVideo.current) {
                 myVideo.current.srcObject = currentStream;
             }
+            toast.success('✅ Camera and microphone access granted!');
         } catch (err) {
             console.error("Error accessing media devices:", err);
-            toast.error("Could not access camera/microphone");
+            console.error("Error name:", err.name);
+            console.error("Error message:", err.message);
+            
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                toast.error('❌ Permission Denied - Check Android Settings > Apps > Chrome > Permissions');
+            } else if (err.name === 'NotFoundError') {
+                toast.error('❌ No camera or microphone found on this device.');
+            } else if (err.name === 'NotReadableError') {
+                toast.error('❌ Camera or microphone is already in use by another app.');
+            } else if (err.name === 'SecurityError') {
+                toast.error('❌ Security error - Try using HTTPS or check site permissions');
+            } else {
+                toast.error('❌ Could not access camera/microphone: ' + err.name + ' - ' + err.message);
+            }
+            
+            throw err;
         }
     };
 
@@ -186,6 +251,13 @@ export const VideoProvider = ({ children }) => {
             setStream(null);
             streamRef.current = null;
         }
+    };
+
+    const requestPermissions = async () => {
+        // Clear error state first
+        // Small delay to ensure browser is ready for permission prompt
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return startVideo();
     };
 
     const initiateCall = async (roomId) => {
@@ -203,7 +275,6 @@ export const VideoProvider = ({ children }) => {
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
 
-        console.log('VideoContext: Sending offer');
         socket.emit('offer', { roomId, offer });
     };
 
@@ -215,11 +286,11 @@ export const VideoProvider = ({ children }) => {
         callEnded,
         startVideo,
         stopVideo,
+        requestPermissions,
         initiateCall,
         connectionRef
     }), [stream, remoteStream, callAccepted, callEnded, socket]);
 
-    console.log('VideoProvider: Providing value', value);
 
     return (
         <VideoContext.Provider value={value}>

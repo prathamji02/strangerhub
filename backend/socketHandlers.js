@@ -31,7 +31,7 @@ export const setupSocketHandlers = (io) => {
         const userId = socket.userId;
         onlineUsers.set(userId, socket.id);
         io.emit('update_online_count', onlineUsers.size);
-        console.log(`User ${userId} connected. Online: ${onlineUsers.size}`);
+        console.info(`[Socket] User Connected: ${userId} | Total Online: ${onlineUsers.size} | Socket ID: ${socket.id}`);
 
         // Log activity
         prisma.activityLog.create({
@@ -141,8 +141,17 @@ export const setupSocketHandlers = (io) => {
                 if (mode === 'chat' || user2.mode === 'chat') matchMode = 'chat';
                 else matchMode = 'video'; // If neither is chat-only, then both support video.
 
+                const callStartTime = Date.now();
                 const roomId = `${user1.socketId}-${user2.socketId}`;
-                activeRooms.set(roomId, { user1, user2, matchMode, chatHistory: [] });
+                activeRooms.set(roomId, { 
+                  user1, 
+                  user2, 
+                  matchMode, 
+                  chatHistory: [],
+                  callStartTime,
+                  callEndedBy: null,
+                  warningEmitted: false,
+                });
 
                 const socket1 = io.sockets.sockets.get(user1.socketId);
                 const socket2 = io.sockets.sockets.get(user2.socketId);
@@ -284,6 +293,35 @@ export const setupSocketHandlers = (io) => {
             endChatAndLog(roomId, io);
         });
 
+        socket.on('call_duration_update', ({ roomId, currentDurationSeconds }) => {
+            const room = activeRooms.get(roomId);
+            if (room) {
+                // Send warning at 9 minutes (540 seconds)
+                if (currentDurationSeconds >= 540 && !room.warningEmitted) {
+                    room.warningEmitted = true;
+                    io.to(room.user1.socketId).emit('call_warning_final_minute', {
+                        message: '⏰ Call will end in 1 minute',
+                        remainingSeconds: 60,
+                    });
+                    io.to(room.user2.socketId).emit('call_warning_final_minute', {
+                        message: '⏰ Call will end in 1 minute',
+                        remainingSeconds: 60,
+                    });
+                }
+
+                // Force disconnect at 10 minutes (600 seconds)
+                if (currentDurationSeconds >= 600) {
+                    io.to(room.user1.socketId).emit('forced_disconnect', {
+                        reason: 'Max call duration reached',
+                    });
+                    io.to(room.user2.socketId).emit('forced_disconnect', {
+                        reason: 'Max call duration reached',
+                    });
+                    endChatAndLog(roomId, io);
+                }
+            }
+        });
+
         socket.on('delete_chat', async ({ chatId }) => {
             try {
                 // Verify user is a participant
@@ -308,6 +346,7 @@ export const setupSocketHandlers = (io) => {
         });
 
         socket.on('disconnect', () => {
+            console.info(`[Socket] User Disconnected: ${userId} | Socket ID: ${socket.id}`);
             onlineUsers.delete(userId);
             io.emit('update_online_count', onlineUsers.size);
             console.log(`User ${userId} disconnected. Online: ${onlineUsers.size}`);
@@ -318,6 +357,7 @@ export const setupSocketHandlers = (io) => {
             for (const [roomId, room] of activeRooms.entries()) {
                 if (room.user1.socketId === socket.id || room.user2.socketId === socket.id) {
                     roomIdToEnd = roomId;
+                    console.info(`[Socket] User disconnected during active call. Room: ${roomIdToEnd}`);
                     break;
                 }
             }
@@ -341,6 +381,9 @@ const findPartner = (pool, blockedUserIds) => {
 const endChatAndLog = async (roomId, io) => {
     const room = activeRooms.get(roomId);
     if (room) {
+        // Calculate call duration in seconds
+        const callDurationSeconds = Math.round((Date.now() - room.callStartTime) / 1000);
+
         if (room.chatHistory.length > 0) {
             await prisma.report.create({
                 data: {
@@ -352,6 +395,63 @@ const endChatAndLog = async (roomId, io) => {
                 }
             }).catch(console.error);
         }
+
+        // Fetch earning config
+        const earningConfig = await prisma.earningConfig.findFirst();
+        const isEarningEnabled = earningConfig?.isEarningEnabled ?? true;
+
+        const processCoins = async (user, callDuration) => {
+            const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+            if (!dbUser || !dbUser.coinOptInEnabled) return { coinsEarned: 0, newBalance: dbUser?.currentCoinsBalance || 0, coinOptInEnabled: false, earningEnabled: isEarningEnabled };
+            if (!isEarningEnabled) return { coinsEarned: 0, newBalance: dbUser.currentCoinsBalance, coinOptInEnabled: true, earningEnabled: false };
+            
+            // Calculate
+            let coinsAmount = earningConfig.maleCoinsAmount || 1;
+            let conversionTimeSeconds = earningConfig.maleConversionTimeSeconds || 120;
+            if (dbUser.gender && dbUser.gender.toLowerCase() === 'f') {
+                coinsAmount = earningConfig.femaleCoinsAmount || 1;
+                conversionTimeSeconds = earningConfig.femaleConversionTimeSeconds || 60;
+            }
+            
+            // Must be at least 2 minutes to earn
+            if (callDuration >= 120) {
+                const coinsEarned = Math.floor((callDuration / conversionTimeSeconds) * coinsAmount);
+                if (coinsEarned > 0) {
+                    await prisma.coinTransaction.create({
+                        data: { userId: dbUser.id, type: 'EARNED_CALL', coinsAmount: coinsEarned, callDurationSeconds: callDuration }
+                    });
+                    const updatedUser = await prisma.user.update({
+                        where: { id: dbUser.id },
+                        data: {
+                            currentCoinsBalance: dbUser.currentCoinsBalance + coinsEarned,
+                            totalCoinsEarned: dbUser.totalCoinsEarned + coinsEarned
+                        }
+                    });
+                    return { coinsEarned, newBalance: updatedUser.currentCoinsBalance, coinOptInEnabled: true, earningEnabled: true };
+                }
+            }
+            return { coinsEarned: 0, newBalance: dbUser.currentCoinsBalance, coinOptInEnabled: true, earningEnabled: true };
+        };
+
+        const result1 = await processCoins(room.user1, callDurationSeconds);
+        const result2 = await processCoins(room.user2, callDurationSeconds);
+
+        console.info(`[Socket] Call Summary | Room: ${roomId} | Duration: ${callDurationSeconds}s | MatchMode: ${room.matchMode}`);
+        console.info(`[Socket] Coins Awarded -> User1: ${result1.coinsEarned}, User2: ${result2.coinsEarned}`);
+
+        // Emit call duration and securely calculated coins to both users
+        io.to(room.user1.socketId).emit('call_duration', { 
+          partnerId: room.user2.id,
+          callDurationSeconds,
+          matchMode: room.matchMode,
+          ...result1
+        });
+        io.to(room.user2.socketId).emit('call_duration', { 
+          partnerId: room.user1.id,
+          callDurationSeconds,
+          matchMode: room.matchMode,
+          ...result2
+        });
 
         io.to(room.user1.socketId).emit('chat_ended', { partnerId: room.user2.id });
         io.to(room.user2.socketId).emit('chat_ended', { partnerId: room.user1.id });

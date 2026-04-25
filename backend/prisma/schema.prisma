@@ -28,6 +28,16 @@ model User {
   ratingCount     Int       @default(0)
   unfreezeAt      DateTime? // <-- NEW: For timed freeze
 
+  // Coin system fields
+  totalCoinsEarned          Decimal   @default(0)
+  currentCoinsBalance       Decimal   @default(0)
+  totalCoinsRedeemed        Decimal   @default(0)
+  coinOptInEnabled          Boolean   @default(false)
+  coinOptInDate             DateTime?
+  referralCode              String?   @unique
+  isNewUserBonusApplied     Boolean   @default(false)
+  lastLoginDate             DateTime?
+
   chatrooms       Chatroom[] @relation("ChatroomParticipants")
   hiddenChats     Chatroom[] @relation("HiddenChatsForUsers") // <-- NEW: For soft deleting chats
   sent_messages   Message[]  @relation("SentMessages")
@@ -37,6 +47,14 @@ model User {
   blockedBy       Block[]    @relation("blocking")
   reportsMade     Report[]   @relation("reporter")
   reportsAgainst  Report[]   @relation("reported")
+  
+  // Coin relations
+  paymentDetail             UserPaymentDetail?
+  coinTransactions          CoinTransaction[]
+  redemptionRequests        RedemptionRequest[]
+  loginBonusClaims          LoginBonusClaim[]
+  referrals                 UserReferral[]    @relation("referrer")
+  referredBy                UserReferral[]    @relation("referred")
 }
 
 model Chatroom {
@@ -96,4 +114,91 @@ model ActivityLog {
   userId    String?
   action    String   // e.g., "CONNECT", "DISCONNECT"
   timestamp DateTime @default(now())
+}
+
+// ===== COIN SYSTEM MODELS =====
+
+model UserPaymentDetail {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  paymentMethod   String    // UPI_NUMBER, UPI_ID, BANK_ACCOUNT
+  upiNumber       String?
+  upiId           String?
+  accountNumber   String?
+  ifscCode        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CoinTransaction {
+  id                    String    @id @default(cuid())
+  userId                String
+  type                  String    // EARNED_CALL, REDEEMED, ADMIN_ADJUSTMENT
+  coinsAmount           Decimal
+  callDurationSeconds   Int?
+  callId                String?
+  redemptionRequestId   String?
+  isNewUserBonus        Boolean   @default(false)
+  isReferralBonus       Boolean   @default(false)
+  reason                String?
+  createdAt             DateTime  @default(now())
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RedemptionRequest {
+  id                String    @id @default(cuid())
+  userId            String
+  requestedCoins    Decimal   @default(1000)  // Fixed at 1000 coins
+  status            String    // PENDING, APPROVED, REJECTED, TRANSFERRED
+  requestDate       DateTime  @default(now())
+  approvedDate      DateTime?
+  transferDate      DateTime?
+  transferRefId     String?
+  rejectionReason   String?
+  approvedByAdminId String?
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EarningConfig {
+  id                           String    @id @default(cuid())
+  isEarningEnabled             Boolean   @default(true)
+  disabilityMessage            String?
+  femaleCoinsAmount            Int       @default(1)
+  femaleConversionTimeSeconds  Int       @default(60)
+  maleCoinsAmount              Int       @default(1)
+  maleConversionTimeSeconds    Int       @default(120)
+  lastUpdatedBy                String?
+  updatedAt                    DateTime  @updatedAt
+}
+
+model UserReferral {
+  id                        String    @id @default(cuid())
+  referrerId                String
+  referredUserId            String
+  referralCode              String    @unique
+  createdAt                 DateTime  @default(now())
+  referredUserEarnedBonus   Boolean   @default(false)
+  referrer                  User      @relation("referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred                  User      @relation("referred", fields: [referredUserId], references: [id], onDelete: Cascade)
+}
+
+model LoginBonusClaim {
+  id              String    @id @default(cuid())
+  userId          String
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  bonusAmount     Int       @default(100) // Number of coins for login bonus
+  paymentMethod   String    // UPI_NUMBER, UPI_ID, BANK_ACCOUNT
+  upiNumber       String?
+  upiId           String?
+  accountNumber   String?
+  ifscCode        String?
+  claimedAt       DateTime  @default(now())
+  approvedAt      DateTime?
+  rejectionReason String?
+  approvedByAdminId String?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }

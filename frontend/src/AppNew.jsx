@@ -13,6 +13,11 @@ import LandingScreen from './components/LandingScreen';
 import ResizableLayout from './components/ResizableLayout';
 import SavedChatsScreen from './components/SavedChatsScreen';
 import ActivityGraphModal from './components/ActivityGraphModal';
+import CoinOptInModal from './components/CoinOptInModal';
+import CallSummaryModal from './components/CallSummaryModal';
+import CoinDashboard from './pages/CoinDashboard';
+import FloatingMoneyButton from './components/FloatingMoneyButton';
+import LoginBonusPopup from './components/LoginBonusPopup';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const api = axios.create({ baseURL: API_URL });
@@ -65,10 +70,21 @@ function AppContent() {
     const [ratingPartnerName, setRatingPartnerName] = useState('');
     const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
     const [showActivityGraph, setShowActivityGraph] = useState(false);
+    const [permissionError, setPermissionError] = useState(null);
+
+    // Coin System State
+    const [showCoinOptIn, setShowCoinOptIn] = useState(false);
+    const [coinBalance, setCoinBalance] = useState(0);
+    const [earningEnabled, setEarningEnabled] = useState(true);
+    const [coinOptInEnabled, setCoinOptInEnabled] = useState(false);
+    const [showCallSummary, setShowCallSummary] = useState(false);
+    const [callData, setCallData] = useState(null);
+    const [showLoginBonusPopup, setShowLoginBonusPopup] = useState(false);
+    const [coinDashboardTab, setCoinDashboardTab] = useState('balance');
 
     const { socket } = useSocket();
     const videoContext = useVideo();
-    const { stream, remoteStream, callAccepted, callEnded, startVideo, stopVideo, initiateCall } = videoContext || {};
+    const { stream, remoteStream, callAccepted, callEnded, startVideo, stopVideo, initiateCall, requestPermissions } = videoContext || {};
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -83,6 +99,25 @@ function AppContent() {
                     }
                     setIsAdmin(data.isAdmin);
                     setLoginUserInfo(data);
+                    setCoinOptInEnabled(data.coinOptInEnabled || false);
+                    setCoinBalance(data.currentCoinsBalance || 0);
+
+                    // Check Login Bonus Status
+                    if (!data.isNewUserBonusApplied) {
+                        const claimStatus = data.loginBonusClaimStatus;
+                        // Show popup only if they have never submitted a claim
+                        if (!claimStatus) {
+                            setShowLoginBonusPopup(true);
+                        }
+                    }
+
+                    // Fetch earning config
+                    try {
+                        const earningRes = await api.get('/coins/earning-config');
+                        setEarningEnabled(earningRes.data.isEarningEnabled);
+                    } catch (earningError) {
+                    }
+
                     if (data.fake_name) {
                         setView('home');
                     } else {
@@ -177,6 +212,39 @@ function AppContent() {
             toast.error("Stranger declined to connect.", { duration: 5000 });
         });
 
+        socket.on('call_duration', async (data) => {
+            const { callDurationSeconds, coinsEarned, newBalance, earningEnabled, coinOptInEnabled } = data;
+            
+            // Only process if call was at least 2 minutes
+            if (callDurationSeconds >= 120) {
+                if (coinOptInEnabled && earningEnabled) {
+                    
+                    setCallData({
+                        callDurationSeconds,
+                        coinsEarned: coinsEarned || 0,
+                        newBalance: newBalance || 0,
+                        earningEnabled: true,
+                        coinOptInEnabled: true
+                    });
+                    setCoinBalance(newBalance || 0);
+                    setShowCallSummary(true);
+                } else if (!earningEnabled) {
+                    setCallData({
+                        callDurationSeconds,
+                        coinsEarned: 0,
+                        newBalance: newBalance || 0,
+                        earningEnabled: false,
+                        coinOptInEnabled: coinOptInEnabled
+                    });
+                    setShowCallSummary(true);
+                } else if (!coinOptInEnabled) {
+                    setShowCoinOptIn(true);
+                }
+            } else {
+                 // Optional: show a short call warning if needed, but not strictly required by original logic
+            }
+        });
+
         return () => {
             socket.off('chat_started');
             socket.off('chat_ended');
@@ -184,19 +252,24 @@ function AppContent() {
             socket.off('save_chat_request');
             socket.off('chat_saved');
             socket.off('save_chat_declined');
+            socket.off('call_duration');
         };
     }, [socket, roomId, viewingChatId]);
 
     // Handle Video Initiation
     useEffect(() => {
         if (view === 'in_chat' && (matchMode === 'video' || matchMode === 'both')) {
-            console.log('AppNew: Attempting to start video...', { shouldInitiate, roomId });
-            startVideo().then(() => {
-                console.log('AppNew: Video started. Checking initiation...', { shouldInitiate, roomId });
-                if (shouldInitiate && roomId) {
-                    initiateCall(roomId);
-                }
-            });
+            setPermissionError(null);
+            startVideo()
+                .then(() => {
+                    if (shouldInitiate && roomId) {
+                        initiateCall(roomId);
+                    }
+                })
+                .catch((error) => {
+                    console.error('AppNew: Video permission error:', error);
+                    setPermissionError(error.message || 'Could not access camera/microphone');
+                });
         }
     }, [view, matchMode, shouldInitiate, roomId]);
 
@@ -478,7 +551,57 @@ function AppContent() {
 
             // Video / Both Mode (3-Part Layout)
             return (
-                <div className="h-dvh w-full bg-black overflow-hidden">
+                <div className="h-dvh w-full bg-black overflow-hidden relative">
+                    {permissionError && (
+                        <div className="absolute top-4 left-4 right-4 bg-red-900/90 border border-red-500 rounded-lg p-4 z-50 max-h-1/3 overflow-y-auto">
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                    <h3 className="text-red-200 font-bold mb-2">📷 Camera/Microphone Permission Blocked</h3>
+                                    <p className="text-red-100 text-sm mb-3">The permission prompt is not appearing because it was previously denied or blocked.</p>
+                                    <p className="text-red-100 text-sm mb-2 font-semibold bg-red-800 p-2 rounded">⚠️ Solution: Reset Permissions at Android Level</p>
+                                    <ol className="text-red-100 text-xs mb-4 space-y-1 list-decimal list-inside">
+                                        <li><strong>Settings → Apps</strong></li>
+                                        <li>Find and tap <strong>Chrome</strong></li>
+                                        <li>Tap <strong>Permissions</strong></li>
+                                        <li>Tap <strong>Camera</strong> → Select <strong>Allow</strong></li>
+                                        <li>Tap <strong>Microphone</strong> → Select <strong>Allow</strong></li>
+                                        <li>Return to this page and <strong>Refresh</strong> (pull down)</li>
+                                        <li>Click <strong>Retry Permission</strong></li>
+                                    </ol>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setPermissionError(null);
+                                                toast.success('✅ If you enabled permissions in Settings, refresh the page now!', { duration: 4000 });
+                                                requestPermissions().catch(err => {});
+                                            }}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition font-semibold"
+                                        >
+                                            ✅ Permissions Enabled - Retry
+                                        </button>
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition font-semibold"
+                                        >
+                                            🔄 Refresh Page
+                                        </button>
+                                        <button
+                                            onClick={handleSkip}
+                                            className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm transition"
+                                        >
+                                            Skip Video
+                                        </button>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setPermissionError(null)}
+                                    className="text-red-200 hover:text-red-100 ml-2 flex-shrink-0"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     <ResponsiveLayout
                         left={LocalVideoSection}
                         center={RemoteVideoSection}
@@ -492,14 +615,78 @@ function AppContent() {
             return <AdminDashboard onBack={() => setView('home')} />;
         }
 
-        return <Home onFindMatch={handleFindMatch} onLogout={handleLogout} isAdmin={isAdmin} onNavigate={setView} onShowActivity={() => setShowActivityGraph(true)} />;
+        if (view === 'coin_dashboard') {
+            return <CoinDashboard initialTab={coinDashboardTab} onBack={() => setView('home')} />;
+        }
+
+        return <Home 
+            onFindMatch={handleFindMatch} 
+            onLogout={handleLogout} 
+            isAdmin={isAdmin} 
+            onNavigate={setView} 
+            onShowActivity={() => setShowActivityGraph(true)}
+        />;
     };
 
     return (
         <>
             {renderView()}
 
+            {/* Floating Money Button */}
+            {(['home', 'in_chat', 'saved_chats', 'view_chat'].includes(view) && loginUserInfo) && (
+                <FloatingMoneyButton 
+                    onClick={() => {
+                        setCoinDashboardTab('balance');
+                        setView('coin_dashboard');
+                    }}
+                    coins={Math.floor(coinBalance)}
+                    earningEnabled={earningEnabled}
+                />
+            )}
+
             <ActivityGraphModal isOpen={showActivityGraph} onClose={() => setShowActivityGraph(false)} />
+
+            {/* Coin Opt-in Modal */}
+            <CoinOptInModal 
+                isOpen={showCoinOptIn} 
+                onClose={() => setShowCoinOptIn(false)}
+                onSubmit={async (paymentData) => {
+                    try {
+                        await api.post('/coins/opt-in', paymentData);
+                        setCoinOptInEnabled(true);
+                        setShowCoinOptIn(false);
+                        toast.success('Earning enabled! You can now earn coins from calls.');
+                    } catch (error) {
+                        toast.error(error.response?.data?.message || 'Failed to enable earning');
+                    }
+                }}
+                isLoading={false}
+            />
+
+            {/* Login Bonus Popup */}
+            <LoginBonusPopup
+                isOpen={showLoginBonusPopup}
+                onClose={() => setShowLoginBonusPopup(false)}
+                onClaimClick={() => {
+                    setShowLoginBonusPopup(false);
+                    setCoinDashboardTab('login-bonus');
+                    setView('coin_dashboard');
+                }}
+            />
+
+            {/* Call Summary Modal */}
+            <CallSummaryModal 
+                isOpen={showCallSummary}
+                onClose={() => {
+                    setShowCallSummary(false);
+                    setCallData(null);
+                }}
+                callData={callData}
+                onRedeemClick={() => {
+                    setShowCallSummary(false);
+                    setView('coin_dashboard');
+                }}
+            />
 
             {/* Global Rating Modal */}
             {showRatingModal && (

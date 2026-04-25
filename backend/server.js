@@ -15,6 +15,7 @@ import ratingRoutes from './routes/ratingRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
+import coinRoutes from './routes/coinRoutes.js';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -40,6 +41,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/activity', activityRoutes);
+app.use('/api/coins', coinRoutes);
 
 let waitingPool = [];
 const activeRooms = new Map();

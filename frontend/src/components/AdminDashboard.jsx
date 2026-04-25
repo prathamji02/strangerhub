@@ -32,16 +32,69 @@ export default function AdminDashboard({ onBack }) {
     const [freezeDuration, setFreezeDuration] = useState(7);
     const [messageContent, setMessageContent] = useState('');
 
+    // Coin Management State
+    const [earningEnabled, setEarningEnabled] = useState(true);
+    const [earningMessage, setEarningMessage] = useState('');
+    const [femaleCoinsAmount, setFemaleCoinsAmount] = useState(1);
+    const [femaleConversionMinutes, setFemaleConversionMinutes] = useState(1);
+    const [femaleConversionSeconds, setFemaleConversionSeconds] = useState(0);
+    const [maleCoinsAmount, setMaleCoinsAmount] = useState(1);
+    const [maleConversionMinutes, setMaleConversionMinutes] = useState(2);
+    const [maleConversionSeconds, setMaleConversionSeconds] = useState(0);
+    const [redemptionRequests, setRedemptionRequests] = useState([]);
+    const [approveModal, setApproveModal] = useState({ isOpen: false, request: null, rejectMode: false });
+    const [rejectReason, setRejectReason] = useState('');
+    const [transferRefId, setTransferRefId] = useState('');
+    
+    // Login Bonus Claim State
+    const [loginBonusClaims, setLoginBonusClaims] = useState([]);
+    const [rejectBonusModal, setRejectBonusModal] = useState({ isOpen: false, claim: null });
+    const [rejectBonusReason, setRejectBonusReason] = useState('');
+    const [bonusApproveModal, setBonusApproveModal] = useState({ isOpen: false, claim: null });
+    const [bonusApproveRemark, setBonusApproveRemark] = useState('');
+
     const fetchData = async (type) => {
         setSelectedItem(null);
         setLoading(true);
         try {
             const token = localStorage.getItem('authToken');
-            const { data } = await api.get(`/admin/${type}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (type === 'reports') setReports(data);
-            if (type === 'users') setUsers(data);
+            if (type === 'coins') {
+                // Fetch coin earning config
+                const configRes = await api.get('/admin/earning-config', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setEarningEnabled(configRes.data.isEarningEnabled);
+                setEarningMessage(configRes.data.disabilityMessage || '');
+                
+                // Convert seconds to minutes and seconds for display
+                const femaleSeconds = configRes.data.femaleConversionTimeSeconds || 60;
+                setFemaleCoinsAmount(configRes.data.femaleCoinsAmount || 1);
+                setFemaleConversionMinutes(Math.floor(femaleSeconds / 60));
+                setFemaleConversionSeconds(femaleSeconds % 60);
+                
+                const maleSeconds = configRes.data.maleConversionTimeSeconds || 120;
+                setMaleCoinsAmount(configRes.data.maleCoinsAmount || 1);
+                setMaleConversionMinutes(Math.floor(maleSeconds / 60));
+                setMaleConversionSeconds(maleSeconds % 60);
+
+                // Fetch redemption requests
+                const requestsRes = await api.get('/admin/coin-requests?page=1&limit=100', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setRedemptionRequests(requestsRes.data.requests || requestsRes.data);
+
+                // Fetch login bonus claims
+                const bonusRes = await api.get('/admin/login-bonus-claims?status=PENDING&page=1&limit=100', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setLoginBonusClaims(bonusRes.data.claims || []);
+            } else {
+                const { data } = await api.get(`/admin/${type}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (type === 'reports') setReports(data);
+                if (type === 'users') setUsers(data);
+            }
         } catch (error) {
             console.error(`Failed to fetch ${type}`, error);
             toast.error(`Failed to fetch ${type}`);
@@ -146,6 +199,104 @@ export default function AdminDashboard({ onBack }) {
         );
         setMessageContent('');
         setModal({ type: null, data: null });
+    };
+
+    const handleToggleEarning = async () => {
+        const token = localStorage.getItem('authToken');
+        const femaleConversionTimeSeconds = (femaleConversionMinutes * 60) + femaleConversionSeconds;
+        const maleConversionTimeSeconds = (maleConversionMinutes * 60) + maleConversionSeconds;
+        
+        await toast.promise(
+            api.post('/admin/earning-config', 
+                { 
+                    isEarningEnabled: !earningEnabled,
+                    disabilityMessage: earningMessage,
+                    femaleCoinsAmount: femaleCoinsAmount,
+                    femaleConversionTimeSeconds: femaleConversionTimeSeconds,
+                    maleCoinsAmount: maleCoinsAmount,
+                    maleConversionTimeSeconds: maleConversionTimeSeconds
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            {
+                loading: 'Updating earning config...',
+                success: `Earning ${!earningEnabled ? 'enabled' : 'disabled'}.`,
+                error: 'Failed to update config.',
+            }
+        );
+        fetchData('coins');
+    };
+
+    const handleApproveRedemption = async () => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/approve-coin-request/${approveModal.request?.id}`, 
+                { transactionReference: transferRefId || 'ADMIN_APPROVED' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            {
+                loading: 'Approving redemption...',
+                success: 'Redemption approved and coins transferred.',
+                error: 'Failed to approve redemption.',
+            }
+        );
+        setTransferRefId('');
+        setApproveModal({ isOpen: false, request: null, rejectMode: false });
+        fetchData('coins');
+    };
+
+    const handleRejectRedemption = async (requestId) => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/reject-coin-request/${requestId}`,
+                { rejectionReason: rejectReason || 'Rejected by admin' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            {
+                loading: 'Rejecting redemption...',
+                success: 'Redemption rejected.',
+                error: 'Failed to reject redemption.',
+            }
+        );
+        setRejectReason('');
+        setApproveModal({ isOpen: false, request: null });
+        fetchData('coins');
+    };
+
+    const handleApproveLoginBonus = async () => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/login-bonus-claims/${bonusApproveModal.claim?.id}/approve`, 
+                { remarks: bonusApproveRemark || 'Login bonus claim approved' }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            {
+                loading: 'Approving login bonus...',
+                success: 'Login bonus approved.',
+                error: 'Failed to approve bonus.',
+            }
+        );
+        setBonusApproveRemark('');
+        setBonusApproveModal({ isOpen: false, claim: null });
+        fetchData('coins');
+    };
+
+    const handleRejectLoginBonus = async (claimId) => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/login-bonus-claims/${claimId}/reject`,
+                { rejectionReason: rejectBonusReason || 'Rejected by admin' },
+                { headers: { Authorization: `Bearer ${token}` } }
+            ),
+            {
+                loading: 'Rejecting login bonus...',
+                success: 'Login bonus rejected.',
+                error: 'Failed to reject bonus.',
+            }
+        );
+        setRejectBonusReason('');
+        setRejectBonusModal({ isOpen: false, claim: null });
+        fetchData('coins');
     };
 
     const handleRegisterUser = async (e) => {
@@ -320,6 +471,7 @@ export default function AdminDashboard({ onBack }) {
                 <div className="flex border-b border-gray-700 mb-4">
                     <button onClick={() => setAdminView('reports')} className={`py-2 px-4 ${adminView === 'reports' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Reports & Logs</button>
                     <button onClick={() => setAdminView('users')} className={`py-2 px-4 ${adminView === 'users' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Users</button>
+                    <button onClick={() => setAdminView('coins')} className={`py-2 px-4 ${adminView === 'coins' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Coin Management</button>
                 </div>
 
                 {loading && <p>Loading...</p>}
@@ -430,6 +582,247 @@ export default function AdminDashboard({ onBack }) {
                         </div>
                     </div>
                 )}
+
+                {adminView === 'coins' && !loading && (
+                    <div className="space-y-6">
+                        {/* Earning Config Section */}
+                        <div className="bg-gray-800 p-6 rounded-lg">
+                            <h2 className="text-2xl font-bold mb-4">Earning Configuration</h2>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-3 bg-gray-700 rounded">
+                                    <div>
+                                        <p className="font-bold">Earning Status</p>
+                                        <p className="text-sm text-gray-400">{earningEnabled ? 'Enabled' : 'Disabled'}</p>
+                                    </div>
+                                    <button
+                                        onClick={handleToggleEarning}
+                                        className={`px-6 py-2 rounded font-bold transition-colors ${earningEnabled ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                    >
+                                        {earningEnabled ? 'Disable' : 'Enable'}
+                                    </button>
+                                </div>
+
+                                {!earningEnabled && (
+                                    <div className="p-3 bg-yellow-900/30 border border-yellow-600 rounded">
+                                        <p className="text-yellow-200 font-bold">Status Message:</p>
+                                        <p className="text-yellow-100 text-sm">{earningMessage}</p>
+                                    </div>
+                                )}
+
+                                {/* Gender-based Rate Configuration */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-t border-gray-700 pt-4">
+                                    {/* Female Users */}
+                                    <div className="p-4 bg-pink-900/20 border border-pink-700/30 rounded-lg">
+                                        <label className="block text-pink-400 font-bold mb-3">👩 Female Users</label>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Coins</p>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={femaleCoinsAmount}
+                                                    onChange={(e) => setFemaleCoinsAmount(parseInt(e.target.value) || 1)}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 2"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Minutes</p>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={femaleConversionMinutes}
+                                                    onChange={(e) => setFemaleConversionMinutes(parseInt(e.target.value) || 0)}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 1"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Seconds</p>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="59"
+                                                    value={femaleConversionSeconds}
+                                                    onChange={(e) => setFemaleConversionSeconds(Math.min(59, parseInt(e.target.value) || 0))}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 30"
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Rate: {femaleCoinsAmount} coin{femaleCoinsAmount !== 1 ? 's' : ''} per {femaleConversionMinutes}m {femaleConversionSeconds}s
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Male/Other Users */}
+                                    <div className="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                                        <label className="block text-blue-400 font-bold mb-3">👨 Male/Other Users</label>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Coins</p>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={maleCoinsAmount}
+                                                    onChange={(e) => setMaleCoinsAmount(parseInt(e.target.value) || 1)}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 1"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Minutes</p>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={maleConversionMinutes}
+                                                    onChange={(e) => setMaleConversionMinutes(parseInt(e.target.value) || 0)}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 2"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-gray-400 text-sm mb-1">Seconds</p>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="59"
+                                                    value={maleConversionSeconds}
+                                                    onChange={(e) => setMaleConversionSeconds(Math.min(59, parseInt(e.target.value) || 0))}
+                                                    className="w-full p-2 bg-gray-700 rounded text-white text-sm"
+                                                    placeholder="e.g., 0"
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Rate: {maleCoinsAmount} coin{maleCoinsAmount !== 1 ? 's' : ''} per {maleConversionMinutes}m {maleConversionSeconds}s
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleToggleEarning}
+                                    className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded mt-4"
+                                >
+                                    Save Earning Rates
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Redemption Requests Section */}
+                        <div className="bg-gray-800 p-6 rounded-lg">
+                            <h2 className="text-2xl font-bold mb-4">Coin Redemption Requests ({redemptionRequests.length})</h2>
+                            {redemptionRequests.length === 0 ? (
+                                <p className="text-gray-400">No redemption requests.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-gray-700">
+                                                <th className="text-left p-3">User</th>
+                                                <th className="text-left p-3">Amount</th>
+                                                <th className="text-left p-3">Status</th>
+                                                <th className="text-left p-3">Requested</th>
+                                                <th className="text-center p-3">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {redemptionRequests.map(request => (
+                                                <tr key={request.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                                    <td className="p-3">{request.user?.fake_name || 'Unknown'}</td>
+                                                    <td className="p-3 font-bold text-green-400">{request.requestedCoins} coins</td>
+                                                    <td className="p-3">
+                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                            request.status === 'PENDING' ? 'bg-yellow-900 text-yellow-200' :
+                                                            request.status === 'APPROVED' ? 'bg-green-900 text-green-200' :
+                                                            request.status === 'REJECTED' ? 'bg-red-900 text-red-200' :
+                                                            'bg-gray-700 text-gray-300'
+                                                        }`}>{request.status}</span>
+                                                    </td>
+                                                    <td className="p-3 text-xs text-gray-400">{new Date(request.createdAt).toLocaleDateString()}</td>
+                                                    <td className="p-3 text-center">
+                                                        {request.status === 'PENDING' && (
+                                                            <div className="flex gap-2 justify-center">
+                                                                <button
+                                                                    onClick={() => setApproveModal({ isOpen: true, request, rejectMode: false })}
+                                                                    className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-xs font-bold"
+                                                                >
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setApproveModal({ isOpen: true, request, rejectMode: true })}
+                                                                    className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-xs font-bold"
+                                                                >
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Login Bonus Claims Section */}
+                        <div className="bg-gray-800 p-6 rounded-lg">
+                            <h2 className="text-2xl font-bold mb-4">Login Bonus Claims ({loginBonusClaims.length})</h2>
+                            {loginBonusClaims.length === 0 ? (
+                                <p className="text-gray-400">No pending login bonus claims.</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-gray-700">
+                                                <th className="text-left p-3">User</th>
+                                                <th className="text-left p-3">Payment Method</th>
+                                                <th className="text-left p-3">Bonus</th>
+                                                <th className="text-left p-3">Requested</th>
+                                                <th className="text-center p-3">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loginBonusClaims.map(claim => (
+                                                <tr key={claim.id} className="border-b border-gray-700 hover:bg-gray-700/50">
+                                                    <td className="p-3">
+                                                        <div className="font-bold">{claim.userName || 'Unknown'}</div>
+                                                        <div className="text-xs text-gray-400">{claim.enrollmentNo}</div>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <div className="font-medium text-pink-400">{claim.paymentMethod?.replace('_', ' ')}</div>
+                                                        <div className="text-xs text-gray-300">{claim.paymentDetails?.masked}</div>
+                                                    </td>
+                                                    <td className="p-3 font-bold text-green-400">{claim.bonusAmount} coins</td>
+                                                    <td className="p-3 text-xs text-gray-400">{new Date(claim.claimedAt).toLocaleDateString()}</td>
+                                                    <td className="p-3 text-center">
+                                                        {claim.status === 'PENDING' && (
+                                                            <div className="flex gap-2 justify-center">
+                                                                <button
+                                                                    onClick={() => setBonusApproveModal({ isOpen: true, claim })}
+                                                                    className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-xs font-bold"
+                                                                >
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setRejectBonusModal({ isOpen: true, claim })}
+                                                                    className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-xs font-bold"
+                                                                >
+                                                                    Reject
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <Modal isOpen={modal.type === 'freeze'} onClose={() => setModal({ type: null, data: null })}>
@@ -442,6 +835,86 @@ export default function AdminDashboard({ onBack }) {
                         <option value="90">3 Months</option>
                     </select>
                     <button type="submit" className="w-full p-2 rounded bg-blue-600 hover:bg-blue-700 font-bold">Confirm Freeze</button>
+                </form>
+            </Modal>
+
+            <Modal isOpen={approveModal.isOpen} onClose={() => setApproveModal({ isOpen: false, request: null, rejectMode: false })}>
+                <h2 className={`text-2xl font-bold mb-4 ${approveModal.rejectMode ? 'text-red-500' : 'text-green-500'}`}>
+                    {approveModal.rejectMode ? 'Reject Redemption Request' : 'Approve Redemption Request'}
+                </h2>
+                <p className="mb-4 text-sm text-gray-300">
+                    {approveModal.rejectMode 
+                        ? "Provide a reason for rejecting this redemption request." 
+                        : "Provide the Transaction Reference ID or Remarks for this successful transfer."}
+                </p>
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (approveModal.rejectMode) handleRejectRedemption(approveModal.request.id);
+                    else handleApproveRedemption();
+                }}>
+                    {approveModal.rejectMode ? (
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Rejection reason (optional)..."
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded mb-4 h-24 resize-none"
+                        />
+                    ) : (
+                        <textarea
+                            value={transferRefId}
+                            onChange={(e) => setTransferRefId(e.target.value)}
+                            placeholder="E.g., UPI Ref No: 1234567890"
+                            className="w-full p-2 bg-gray-700 border border-gray-600 rounded mb-4 h-24 resize-none"
+                            required
+                        />
+                    )}
+                    <div className="flex gap-3">
+                        <button type="button" onClick={() => setApproveModal({ isOpen: false, request: null, rejectMode: false })} className="flex-1 p-2 rounded bg-gray-600 hover:bg-gray-500 font-bold text-white">Cancel</button>
+                        <button type="submit" className={`flex-1 p-2 rounded font-bold text-white shadow-lg ${approveModal.rejectMode ? 'bg-red-600 hover:bg-red-700 shadow-red-500/30' : 'bg-green-600 hover:bg-green-700 shadow-green-500/30'}`}>
+                            {approveModal.rejectMode ? 'Confirm Rejection' : 'Confirm Approval'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal isOpen={rejectBonusModal.isOpen} onClose={() => setRejectBonusModal({ isOpen: false, claim: null })}>
+                <h2 className="text-2xl font-bold mb-4 text-pink-500">Reject Login Bonus</h2>
+                <p className="mb-4 text-sm text-gray-300">Provide a remark for rejecting the login bonus claim of <b>{rejectBonusModal.claim?.userName}</b>. This remark will be shown to the user.</p>
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRejectLoginBonus(rejectBonusModal.claim?.id);
+                }}>
+                    <textarea
+                        value={rejectBonusReason}
+                        onChange={(e) => setRejectBonusReason(e.target.value)}
+                        placeholder="E.g., Invalid UPI ID provided."
+                        className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg mb-4 h-24 resize-none text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none"
+                        required
+                    />
+                    <div className="flex gap-3">
+                        <button type="button" onClick={() => setRejectBonusModal({ isOpen: false, claim: null })} className="flex-1 p-2 rounded bg-gray-700 hover:bg-gray-600 font-bold text-white">Cancel</button>
+                        <button type="submit" className="flex-1 p-2 rounded bg-red-600 hover:bg-red-700 font-bold text-white shadow-lg shadow-red-500/30">Confirm Rejection</button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal isOpen={bonusApproveModal.isOpen} onClose={() => setBonusApproveModal({ isOpen: false, claim: null })}>
+                <h2 className="text-2xl font-bold mb-4 text-green-500">Approve Login Bonus</h2>
+                <p className="mb-4 text-sm text-gray-300">Provide an optional remark or transaction reference for the approval of <b>{bonusApproveModal.claim?.userName}</b>'s claim.</p>
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    handleApproveLoginBonus();
+                }}>
+                    <textarea
+                        value={bonusApproveRemark}
+                        onChange={(e) => setBonusApproveRemark(e.target.value)}
+                        placeholder="E.g., Transferred via UPI Ref #123456"
+                        className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg mb-4 h-24 resize-none text-white focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none"
+                    />
+                    <div className="flex gap-3">
+                        <button type="button" onClick={() => setBonusApproveModal({ isOpen: false, claim: null })} className="flex-1 p-2 rounded bg-gray-700 hover:bg-gray-600 font-bold text-white">Cancel</button>
+                        <button type="submit" className="flex-1 p-2 rounded bg-green-600 hover:bg-green-700 font-bold text-white shadow-lg shadow-green-500/30">Confirm Approval</button>
+                    </div>
                 </form>
             </Modal>
 

@@ -11,7 +11,6 @@ const VideoCall = ({ stream, isLocal }) => {
                 return;
             }
 
-            console.log('VideoCall: Setting srcObject', stream.id);
             videoEl.srcObject = stream;
 
             const playPromise = videoEl.play();
@@ -19,7 +18,6 @@ const VideoCall = ({ stream, isLocal }) => {
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
                     if (error.name === 'AbortError') {
-                        console.log('VideoCall: Play logic aborted (harmless)');
                     } else {
                         console.error('VideoCall: Play failed', error);
                     }

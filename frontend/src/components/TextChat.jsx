@@ -64,7 +64,7 @@ const TextChat = ({ roomId, partnerInfo, chatMessages, onSendMessage, onSkip, is
 
         try {
             const token = localStorage.getItem('authToken');
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/users/block`,
+            await axios.post(`${import.meta.env.VITE_API_URL}/users/block`,
                 { blockedId: partnerInfo.id },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -84,7 +84,7 @@ const TextChat = ({ roomId, partnerInfo, chatMessages, onSendMessage, onSkip, is
             // We send the last 50 messages as context
             const chatHistory = JSON.stringify(chatMessages.slice(-50));
 
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/reports`,
+            await axios.post(`${import.meta.env.VITE_API_URL}/reports`,
                 { reportedId: partnerInfo.id, reason: reportReason, chatHistory },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

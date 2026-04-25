@@ -123,17 +123,44 @@ router.get('/me', protect, async (req, res) => {
         fake_name: true,
         isAdmin: true,
         status: true,
+        currentCoinsBalance: true,
+        isNewUserBonusApplied: true,
       }
     });
     if (user) {
       if (user.status === 'BANNED' || user.status === 'FROZEN') {
         return res.status(403).json({ error: `Your account is ${user.status}.` })
       }
-      res.status(200).json(user);
+
+      // Removed automatic new user bonus award logic here.
+      // Bonus must now be claimed manually via /api/coins/claim-login-bonus
+      
+      let loginBonusClaimStatus = null;
+      try {
+        const claim = await prisma.loginBonusClaim.findFirst({
+          where: { userId: req.user.id },
+          orderBy: { claimedAt: 'desc' }
+        });
+        loginBonusClaimStatus = claim ? {
+          status: claim.status,
+          rejectionReason: claim.rejectionReason,
+          bonusAmount: claim.bonusAmount
+        } : null;
+      } catch (err) {
+        console.error("Error fetching login bonus claim:", err);
+      }
+
+      res.status(200).json({
+        ...user,
+        loginBonusClaimStatus,
+        newUserBonusAwarded: false, // Legacy field
+        bonusCoins: 0, // Legacy field
+      });
     } else {
       res.status(404).json({ error: 'User not found.' });
     }
   } catch (error) {
+    console.error('Auth /me error:', error);
     res.status(500).json({ error: 'Server error.' });
   }
 });

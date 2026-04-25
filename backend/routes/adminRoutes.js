@@ -11,291 +11,740 @@ const upload = multer({ dest: 'uploads/' });
 
 // Middleware to protect routes and check for admin status
 const adminProtect = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        try {
-            const token = authHeader.split(' ')[1];
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
 
-            if (user && user.isAdmin) {
-                req.user = user;
-                next();
-            } else {
-                res.status(403).json({ error: 'Not authorized as an admin.' });
-            }
-        } catch (error) {
-            res.status(401).json({ error: 'Not authorized, token failed' });
-        }
-    } else {
-        res.status(401).json({ error: 'Not authorized, no token' });
+      if (user && user.isAdmin) {
+        req.user = user;
+        next();
+      } else {
+        res.status(403).json({ error: 'Not authorized as an admin.' });
+      }
+    } catch (error) {
+      res.status(401).json({ error: 'Not authorized, token failed' });
     }
+  } else {
+    res.status(401).json({ error: 'Not authorized, no token' });
+  }
 };
 
 // GET /api/admin/check
 router.get('/check', adminProtect, (req, res) => {
-    res.status(200).json({ message: 'Admin access verified.' });
+  res.status(200).json({ message: 'Admin access verified.' });
 });
 
 // GET /api/admin/reports
 router.get('/reports', adminProtect, async (req, res) => {
-    try {
-        const reports = await prisma.report.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                reporter: { select: { fake_name: true } },
-                reported: { select: { fake_name: true } },
-            },
-        });
-        res.status(200).json(reports);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch reports.' });
-    }
+  try {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { fake_name: true } },
+        reported: { select: { fake_name: true } },
+      },
+    });
+    res.status(200).json(reports);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reports.' });
+  }
 });
 
 // DELETE /api/admin/reports/:id
 router.delete('/reports/:id', adminProtect, async (req, res) => {
-    const { id } = req.params;
-    try {
-        await prisma.report.delete({
-            where: { id },
-        });
-        res.status(200).json({ message: 'Log deleted successfully.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to delete log.' });
-    }
+  const { id } = req.params;
+  try {
+    await prisma.report.delete({
+      where: { id },
+    });
+    res.status(200).json({ message: 'Log deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete log.' });
+  }
 });
 
 // GET /api/admin/users
 router.get('/users', adminProtect, async (req, res) => {
-    try {
-        const users = await prisma.user.findMany({
-            select: {
-                id: true, name: true, fake_name: true, enrollment_no: true,
-                status: true, averageRating: true, ratingCount: true, email: true, phone_no: true, gender: true, college: true
-            },
-        });
-        res.status(200).json(users);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch users.' });
-    }
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true, name: true, fake_name: true, enrollment_no: true,
+        status: true, averageRating: true, ratingCount: true, email: true, phone_no: true, gender: true, college: true
+      },
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch users.' });
+  }
 });
 
 // DELETE /api/admin/users/:id
 router.delete('/users/:id', adminProtect, async (req, res) => {
-    const { id } = req.params;
-    try {
-        await prisma.user.delete({ where: { id } });
-        res.status(200).json({ message: 'User deleted successfully.' });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to delete user.' });
-    }
+  const { id } = req.params;
+  try {
+    await prisma.user.delete({ where: { id } });
+    res.status(200).json({ message: 'User deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
 });
 
 // PUT /api/admin/users/:id - Update user details
 router.put('/users/:id', adminProtect, async (req, res) => {
-    const { id } = req.params;
-    const { name, fake_name, enrollment_no, email, phone_no, gender, college } = req.body;
-    try {
-        const updatedUser = await prisma.user.update({
-            where: { id },
-            data: { name, fake_name, enrollment_no, email, phone_no, gender, college },
-        });
-        res.status(200).json({ message: 'User updated successfully.', user: updatedUser });
-    } catch (error) {
-        if (error.code === 'P2002') {
-            return res.status(400).json({ error: 'Enrollment number or Email already exists.' });
-        }
-        res.status(500).json({ error: 'Failed to update user.' });
+  const { id } = req.params;
+  const { name, fake_name, enrollment_no, email, phone_no, gender, college } = req.body;
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { name, fake_name, enrollment_no, email, phone_no, gender, college },
+    });
+    res.status(200).json({ message: 'User updated successfully.', user: updatedUser });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Enrollment number or Email already exists.' });
     }
+    res.status(500).json({ error: 'Failed to update user.' });
+  }
 });
 
 // POST /api/admin/ban - Toggles a user's status between BANNED and ACTIVE
 router.post('/ban', adminProtect, async (req, res) => {
-    const { userId } = req.body;
-    try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found.' });
-        }
-
-        // Determine the new status
-        const newStatus = user.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
-
-        await prisma.user.update({
-            where: { id: userId },
-            data: { status: newStatus },
-        });
-
-        res.status(200).json({ message: `User has been ${newStatus.toLowerCase()}.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update user status.' });
+  const { userId } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
     }
+
+    // Determine the new status
+    const newStatus = user.status === 'BANNED' ? 'ACTIVE' : 'BANNED';
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { status: newStatus },
+    });
+
+    res.status(200).json({ message: `User has been ${newStatus.toLowerCase()}.` });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update user status.' });
+  }
 });
 
 // POST /api/admin/freeze
 router.post('/freeze', adminProtect, async (req, res) => {
-    const { userId, durationInDays } = req.body;
-    if (!userId || !durationInDays) {
-        return res.status(400).json({ error: 'User ID and duration are required.' });
+  const { userId, durationInDays } = req.body;
+  if (!userId || !durationInDays) {
+    return res.status(400).json({ error: 'User ID and duration are required.' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // If user is already frozen, unfreeze them. Otherwise, freeze them.
+    if (user.status === 'FROZEN') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: 'ACTIVE', unfreezeAt: null },
+      });
+      return res.status(200).json({ message: 'User has been unfrozen.' });
+    } else {
+      const unfreezeDate = new Date();
+      unfreezeDate.setDate(unfreezeDate.getDate() + parseInt(durationInDays, 10));
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          status: 'FROZEN',
+          unfreezeAt: unfreezeDate,
+        },
+      });
+      return res.status(200).json({ message: `User frozen for ${durationInDays} days.` });
     }
-
-    try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return res.status(404).json({ error: 'User not found.' });
-
-        // If user is already frozen, unfreeze them. Otherwise, freeze them.
-        if (user.status === 'FROZEN') {
-            await prisma.user.update({
-                where: { id: userId },
-                data: { status: 'ACTIVE', unfreezeAt: null },
-            });
-            return res.status(200).json({ message: 'User has been unfrozen.' });
-        } else {
-            const unfreezeDate = new Date();
-            unfreezeDate.setDate(unfreezeDate.getDate() + parseInt(durationInDays, 10));
-
-            await prisma.user.update({
-                where: { id: userId },
-                data: {
-                    status: 'FROZEN',
-                    unfreezeAt: unfreezeDate,
-                },
-            });
-            return res.status(200).json({ message: `User frozen for ${durationInDays} days.` });
-        }
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to update user status.' });
-    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to update user status.' });
+  }
 });
 
 // GET /api/admin/chats/:userId
 router.get('/chats/:userId', adminProtect, async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const userChats = await prisma.chatroom.findMany({
-            where: {
-                is_private: true,
-                participants: { some: { id: userId } },
-            },
-            include: {
-                participants: {
-                    where: { id: { not: userId } },
-                    select: { fake_name: true },
-                },
-            },
-        });
-        res.status(200).json(userChats);
-    } catch (error) {
-        res.status(500).json({ error: "Failed to fetch user's chats." });
-    }
+  const { userId } = req.params;
+  try {
+    const userChats = await prisma.chatroom.findMany({
+      where: {
+        is_private: true,
+        participants: { some: { id: userId } },
+      },
+      include: {
+        participants: {
+          where: { id: { not: userId } },
+          select: { fake_name: true },
+        },
+      },
+    });
+    res.status(200).json(userChats);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user's chats." });
+  }
 });
 
 
 // --- NEW ADMIN DIRECT MESSAGE ROUTE ---
 // POST /api/admin/message - Sends a message from an admin to a user
 router.post('/message', adminProtect, async (req, res) => {
-    const { targetUserId, content } = req.body;
-    const adminId = req.user.id;
+  const { targetUserId, content } = req.body;
+  const adminId = req.user.id;
 
-    if (!targetUserId || !content) {
-        return res.status(400).json({ error: 'Target user ID and message content are required.' });
+  if (!targetUserId || !content) {
+    return res.status(400).json({ error: 'Target user ID and message content are required.' });
+  }
+
+  try {
+    // Find if a chat between the admin and user already exists
+    let chatroom = await prisma.chatroom.findFirst({
+      where: {
+        is_private: true,
+        participants: {
+          every: { id: { in: [adminId, targetUserId] } },
+        },
+      },
+    });
+
+    // If no chatroom exists, create one
+    if (!chatroom) {
+      chatroom = await prisma.chatroom.create({
+        data: {
+          is_private: true,
+          participants: {
+            connect: [{ id: adminId }, { id: targetUserId }],
+          },
+        },
+      });
     }
 
-    try {
-        // Find if a chat between the admin and user already exists
-        let chatroom = await prisma.chatroom.findFirst({
-            where: {
-                is_private: true,
-                participants: {
-                    every: { id: { in: [adminId, targetUserId] } },
-                },
-            },
-        });
+    // Create the message in the chatroom
+    await prisma.message.create({
+      data: {
+        content,
+        sender_id: adminId,
+        chatroom_id: chatroom.id,
+      },
+    });
 
-        // If no chatroom exists, create one
-        if (!chatroom) {
-            chatroom = await prisma.chatroom.create({
-                data: {
-                    is_private: true,
-                    participants: {
-                        connect: [{ id: adminId }, { id: targetUserId }],
-                    },
-                },
-            });
-        }
-
-        // Create the message in the chatroom
-        await prisma.message.create({
-            data: {
-                content,
-                sender_id: adminId,
-                chatroom_id: chatroom.id,
-            },
-        });
-
-        res.status(200).json({ message: 'Message sent successfully.' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to send message.' });
-    }
+    res.status(200).json({ message: 'Message sent successfully.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to send message.' });
+  }
 });
 
 
 // POST /api/admin/register
 router.post('/register', adminProtect, async (req, res) => {
-    const { enrollment_no, name, email, phone_no, gender, college } = req.body;
-    if (!enrollment_no || !name || !email || !phone_no || !gender) {
-        return res.status(400).json({ error: "All fields except college are required." });
-    }
-    try {
-        const newUser = await prisma.user.create({
-            data: { enrollment_no, name, email, phone_no, gender, college }
-        });
+  const { enrollment_no, name, email, phone_no, gender, college } = req.body;
+  if (!enrollment_no || !name || !email || !phone_no || !gender) {
+    return res.status(400).json({ error: "All fields except college are required." });
+  }
+  try {
+    const newUser = await prisma.user.create({
+      data: { enrollment_no, name, email, phone_no, gender, college }
+    });
 
-        await sendWelcomeEmail(newUser.name, newUser.email, newUser.enrollment_no);
+    await sendWelcomeEmail(newUser.name, newUser.email, newUser.enrollment_no);
 
-        res.status(201).json({ message: `User ${newUser.name} created successfully.` });
-    } catch (error) {
-        if (error.code === 'P2002') {
-            const field = error.meta.target[0];
-            return res.status(400).json({ error: `A user with this ${field.replace('_', ' ')} already exists.` });
-        }
-        res.status(500).json({ error: 'Failed to create user.' });
+    res.status(201).json({ message: `User ${newUser.name} created successfully.` });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      const field = error.meta.target[0];
+      return res.status(400).json({ error: `A user with this ${field.replace('_', ' ')} already exists.` });
     }
+    res.status(500).json({ error: 'Failed to create user.' });
+  }
 });
 
 // POST /api/admin/users/upload
 router.post('/users/upload', adminProtect, upload.single('userFile'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded.' });
-    }
-    try {
-        const workbook = xlsx.readFile(req.file.path);
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const users = xlsx.utils.sheet_to_json(sheet);
-        let count = 0;
-        for (const user of users) {
-            try {
-                await prisma.user.upsert({
-                    where: { enrollment_no: String(user.enrollment_no) },
-                    update: { name: user.name, email: user.mail_id, phone_no: String(user.phone_no), gender: user.gender },
-                    create: { enrollment_no: String(user.enrollment_no), name: user.name, email: user.mail_id, phone_no: String(user.phone_no), gender: user.gender },
-                });
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded.' });
+  }
+  try {
+    const workbook = xlsx.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const users = xlsx.utils.sheet_to_json(sheet);
+    let count = 0;
+    for (const user of users) {
+      try {
+        await prisma.user.upsert({
+          where: { enrollment_no: String(user.enrollment_no) },
+          update: { name: user.name, email: user.mail_id, phone_no: String(user.phone_no), gender: user.gender },
+          create: { enrollment_no: String(user.enrollment_no), name: user.name, email: user.mail_id, phone_no: String(user.phone_no), gender: user.gender },
+        });
 
-                await sendWelcomeEmail(upsertedUser.name, upsertedUser.email, upsertedUser.enrollment_no);
-                count++;
-            } catch (e) {
-                console.error(`Failed to process user: ${user.name}`, e);
-            }
-        }
-        res.status(200).json({ message: `Upload complete. Processed ${count} users.` });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to process file.' });
+        await sendWelcomeEmail(upsertedUser.name, upsertedUser.email, upsertedUser.enrollment_no);
+        count++;
+      } catch (e) {
+        console.error(`Failed to process user: ${user.name}`, e);
+      }
     }
+    res.status(200).json({ message: `Upload complete. Processed ${count} users.` });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process file.' });
+  }
+});
+
+// ===== COIN SYSTEM ADMIN ENDPOINTS =====
+
+// GET /api/admin/earning-config - Get current earning configuration
+router.get('/earning-config', adminProtect, async (req, res) => {
+  try {
+    const config = await prisma.earningConfig.findFirst();
+    res.json(config || {
+      isEarningEnabled: true,
+      disabilityMessage: null,
+      femaleCoinsAmount: 1,
+      femaleConversionTimeSeconds: 60,
+      maleCoinsAmount: 1,
+      maleConversionTimeSeconds: 120,
+    });
+  } catch (error) {
+    console.error('Get earning config error:', error);
+    res.status(500).json({ error: 'Failed to fetch earning config' });
+  }
+});
+
+// POST /api/admin/earning-config - Update earning configuration
+router.post('/earning-config', adminProtect, async (req, res) => {
+  try {
+    const { isEarningEnabled, disabilityMessage, femaleCoinsAmount, femaleConversionTimeSeconds, maleCoinsAmount, maleConversionTimeSeconds } = req.body;
+
+    // Check if a config record exists
+    const existingConfig = await prisma.earningConfig.findFirst();
+
+    let config;
+    if (existingConfig) {
+      // Update existing record
+      config = await prisma.earningConfig.update({
+        where: { id: existingConfig.id },
+        data: {
+          isEarningEnabled: isEarningEnabled !== undefined ? isEarningEnabled : existingConfig.isEarningEnabled,
+          disabilityMessage,
+          femaleCoinsAmount: parseInt(femaleCoinsAmount) || 1,
+          femaleConversionTimeSeconds: parseInt(femaleConversionTimeSeconds) || 60,
+          maleCoinsAmount: parseInt(maleCoinsAmount) || 1,
+          maleConversionTimeSeconds: parseInt(maleConversionTimeSeconds) || 120,
+          lastUpdatedBy: req.user.id,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Create new record
+      config = await prisma.earningConfig.create({
+        data: {
+          isEarningEnabled: isEarningEnabled !== undefined ? isEarningEnabled : true,
+          disabilityMessage,
+          femaleCoinsAmount: parseInt(femaleCoinsAmount) || 1,
+          femaleConversionTimeSeconds: parseInt(femaleConversionTimeSeconds) || 60,
+          maleCoinsAmount: parseInt(maleCoinsAmount) || 1,
+          maleConversionTimeSeconds: parseInt(maleConversionTimeSeconds) || 120,
+          lastUpdatedBy: req.user.id,
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: isEarningEnabled ? 'Earning configuration updated' : 'Earning disabled',
+      config,
+    });
+  } catch (error) {
+    console.error('Update earning config error:', error);
+    res.status(500).json({ error: 'Failed to update earning config', details: error.message });
+  }
+});
+
+// GET /api/admin/coin-requests - List redemption requests
+router.get('/coin-requests', adminProtect, async (req, res) => {
+  try {
+    const pageNum = parseInt(req.query.page) || 1;
+    const limitNum = parseInt(req.query.limit) || 20;
+    const status = req.query.status || 'PENDING';
+    const skip = (pageNum - 1) * limitNum;
+
+    const requests = await prisma.redemptionRequest.findMany({
+      where: { status },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fake_name: true,
+            email: true,
+            phone_no: true,
+            paymentDetail: true,
+          },
+        },
+      },
+      orderBy: { requestDate: 'desc' },
+      skip,
+      take: limitNum,
+    });
+
+    const total = await prisma.redemptionRequest.count({ where: { status } });
+
+    res.json({
+      requests: requests.map((req) => ({
+        id: req.id,
+        userId: req.user.id,
+        userName: req.user.fake_name,
+        userEmail: req.user.email,
+        userPhone: req.user.phone_no,
+        coinsRequested: req.requestedCoins,
+        rupeeAmount: req.requestedCoins / 2,
+        paymentMethod: req.user.paymentDetail?.paymentMethod,
+        paymentDetails: maskPaymentDetails(req.user.paymentDetail),
+        status: req.status,
+        requestDate: req.requestDate,
+        approvalDate: req.approvedDate,
+        transferRef: req.transferRefId,
+      })),
+      pagination: {
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        total,
+      },
+    });
+  } catch (error) {
+    console.error('Coin requests error:', error);
+    res.status(500).json({ error: 'Failed to fetch coin requests' });
+  }
+});
+
+// POST /api/admin/approve-coin-request/:requestId - Approve redemption request
+router.post('/approve-coin-request/:requestId', adminProtect, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { transferRefId } = req.body;
+
+    if (!transferRefId) {
+      return res.status(400).json({ error: 'Transfer reference ID required' });
+    }
+
+    const redemptionRequest = await prisma.redemptionRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!redemptionRequest) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Update request status
+    const updated = await prisma.redemptionRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'TRANSFERRED',
+        approvedDate: new Date(),
+        transferDate: new Date(),
+        transferRefId,
+        approvedByAdminId: req.user.id,
+      },
+    });
+
+    // Create coin transaction for redemption
+    await prisma.coinTransaction.create({
+      data: {
+        userId: redemptionRequest.userId,
+        type: 'REDEEMED',
+        coinsAmount: -redemptionRequest.requestedCoins,
+        redemptionRequestId: requestId,
+      },
+    });
+
+    // Deduct coins from user balance
+    const user = await prisma.user.findUnique({
+      where: { id: redemptionRequest.userId },
+    });
+
+    await prisma.user.update({
+      where: { id: redemptionRequest.userId },
+      data: {
+        currentCoinsBalance: Math.max(0, user.currentCoinsBalance - redemptionRequest.requestedCoins),
+        totalCoinsRedeemed: user.totalCoinsRedeemed + redemptionRequest.requestedCoins,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Redemption request approved and transferred',
+      transferRefId,
+    });
+  } catch (error) {
+    console.error('Approve coin request error:', error);
+    res.status(500).json({ error: 'Failed to approve coin request' });
+  }
+});
+
+// POST /api/admin/reject-coin-request/:requestId - Reject redemption request
+router.post('/reject-coin-request/:requestId', adminProtect, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason) {
+      return res.status(400).json({ error: 'Rejection reason required' });
+    }
+
+    const updated = await prisma.redemptionRequest.update({
+      where: { id: requestId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason,
+        approvedByAdminId: req.user.id,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Redemption request rejected',
+      rejectionReason,
+    });
+  } catch (error) {
+    console.error('Reject coin request error:', error);
+    res.status(500).json({ error: 'Failed to reject coin request' });
+  }
+});
+
+// GET /api/admin/user-coin-stats/:userId - View detailed user coin history
+router.get('/user-coin-stats/:userId', adminProtect, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fake_name: true,
+        email: true,
+        totalCoinsEarned: true,
+        currentCoinsBalance: true,
+        totalCoinsRedeemed: true,
+        coinOptInEnabled: true,
+        coinOptInDate: true,
+        paymentDetail: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const transactions = await prisma.coinTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      user: {
+        ...user,
+        paymentDetails: maskPaymentDetails(user.paymentDetail),
+      },
+      transactions: transactions.map((tx) => ({
+        id: tx.id,
+        type: tx.type,
+        coins: tx.coinsAmount,
+        date: tx.createdAt,
+        callDuration: tx.callDurationSeconds,
+        reason: tx.reason,
+        isBonus: tx.isNewUserBonus || tx.isReferralBonus,
+      })),
+    });
+  } catch (error) {
+    console.error('User coin stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch user coin stats' });
+  }
+});
+
+// Helper function to mask payment details
+function maskPaymentDetails(paymentDetail) {
+  if (!paymentDetail) return null;
+
+  const { paymentMethod, upiNumber, upiId, accountNumber } = paymentDetail;
+
+  if (paymentMethod === 'UPI_NUMBER') {
+    return { method: 'UPI Number', masked: upiNumber?.slice(0, 4) + '****' };
+  } else if (paymentMethod === 'UPI_ID') {
+    const [part1, part2] = upiId?.split('@') || ['', ''];
+    return { method: 'UPI ID', masked: part1.slice(0, 3) + '****@' + part2 };
+  } else if (paymentMethod === 'BANK_ACCOUNT') {
+    return { method: 'Bank Account', masked: '****' + accountNumber?.slice(-4) };
+  }
+  return null;
+}
+
+// ===== LOGIN BONUS CLAIM MANAGEMENT ADMIN ENDPOINTS =====
+
+// GET /api/admin/login-bonus-claims - List login bonus claims
+router.get('/login-bonus-claims', adminProtect, async (req, res) => {
+  try {
+    const pageNum = parseInt(req.query.page) || 1;
+    const limitNum = parseInt(req.query.limit) || 20;
+    const status = req.query.status || 'PENDING';
+    const skip = (pageNum - 1) * limitNum;
+
+    const claims = await prisma.loginBonusClaim.findMany({
+      where: { status },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fake_name: true,
+            email: true,
+            phone_no: true,
+            enrollment_no: true,
+          },
+        },
+      },
+      orderBy: { claimedAt: 'desc' },
+      skip,
+      take: limitNum,
+    });
+
+    const total = await prisma.loginBonusClaim.count({ where: { status } });
+
+    res.json({
+      claims: claims.map((claim) => ({
+        id: claim.id,
+        userId: claim.user.id,
+        userName: claim.user.fake_name,
+        userEmail: claim.user.email,
+        userPhone: claim.user.phone_no,
+        enrollmentNo: claim.user.enrollment_no,
+        bonusAmount: claim.bonusAmount,
+        paymentMethod: claim.paymentMethod,
+        paymentDetails: maskPaymentDetails({
+          paymentMethod: claim.paymentMethod,
+          upiNumber: claim.upiNumber,
+          upiId: claim.upiId,
+          accountNumber: claim.accountNumber,
+        }),
+        status: claim.status,
+        claimedAt: claim.claimedAt,
+        approvedAt: claim.approvedAt,
+        rejectionReason: claim.rejectionReason,
+      })),
+      pagination: {
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        total,
+      },
+    });
+  } catch (error) {
+    console.error('Login bonus claims fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch login bonus claims' });
+  }
+});
+
+// POST /api/admin/login-bonus-claims/:id/approve - Approve login bonus claim
+router.post('/login-bonus-claims/:id/approve', adminProtect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remarks } = req.body;
+
+    const claim = await prisma.loginBonusClaim.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!claim) {
+      return res.status(404).json({ error: 'Claim not found' });
+    }
+
+    if (claim.status !== 'PENDING') {
+      return res.status(400).json({
+        error: `Claim is already ${claim.status.toLowerCase()}`,
+      });
+    }
+
+    // Update claim status
+    const updatedClaim = await prisma.loginBonusClaim.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        approvedByAdminId: req.user.id,
+        rejectionReason: remarks || 'Approved by admin',
+      },
+    });
+
+    // Mark bonus as applied on user profile without adding coins
+    const updatedUser = await prisma.user.update({
+      where: { id: claim.userId },
+      data: {
+        isNewUserBonusApplied: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: `Login bonus claim approved!`,
+      claimId: id,
+      userId: claim.userId,
+      bonusAmount: claim.bonusAmount,
+    });
+  } catch (error) {
+    console.error('Approve login bonus claim error:', error);
+    res.status(500).json({ error: 'Failed to approve login bonus claim' });
+  }
+});
+
+// POST /api/admin/login-bonus-claims/:id/reject - Reject login bonus claim
+router.post('/login-bonus-claims/:id/reject', adminProtect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason) {
+      return res.status(400).json({ error: 'Rejection reason required' });
+    }
+
+    const claim = await prisma.loginBonusClaim.findUnique({
+      where: { id },
+    });
+
+    if (!claim) {
+      return res.status(404).json({ error: 'Claim not found' });
+    }
+
+    if (claim.status !== 'PENDING') {
+      return res.status(400).json({
+        error: `Claim is already ${claim.status.toLowerCase()}`,
+      });
+    }
+
+    // Update claim status
+    const updatedClaim = await prisma.loginBonusClaim.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason,
+        approvedByAdminId: req.user.id,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Login bonus claim rejected',
+      claimId: id,
+      rejectionReason,
+    });
+  } catch (error) {
+    console.error('Reject login bonus claim error:', error);
+    res.status(500).json({ error: 'Failed to reject login bonus claim' });
+  }
 });
 
 export default router;
