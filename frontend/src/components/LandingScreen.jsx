@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { TypeAnimation } from 'react-type-animation';
+import axios from 'axios';
+import { toast } from 'react-hot-toast';
 
 // Animation variant for sections to fade in as they're scrolled into view
 const sectionVariant = {
@@ -10,8 +12,7 @@ const sectionVariant = {
   transition: { duration: 0.8, ease: "easeOut" }
 };
 
-// Your Google Form Link
-const GOOGLE_FORM_LINK = "https://docs.google.com/forms/d/e/1FAIpQLScTK6BaVEgy-RrYf7hxpOxYuEHmYpjZ5ASdkQ_U3PY19JLRVA/viewform?usp=dialog";
+// (Google form link removed in favor of in-app registration)
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -27,6 +28,38 @@ const staggerContainer = {
 
 export default function LandingScreen({ onGetStarted }) {
   const [deferredPrompt, setDeferredPrompt] = React.useState(null);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [registerData, setRegisterData] = useState({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '', college: '', upiId: '' });
+  const [idCardFile, setIdCardFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!idCardFile) {
+        toast.error("Please upload a clear front photo of your college ID.");
+        return;
+    }
+    setIsSubmitting(true);
+    const formData = new FormData();
+    Object.keys(registerData).forEach(key => {
+        if (registerData[key]) formData.append(key, registerData[key]);
+    });
+    formData.append('idCardPhoto', idCardFile);
+
+    try {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL || '/api'}/auth/register-request`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        toast.success(response.data.message || "Request submitted successfully!", { duration: 6000 });
+        setShowRegisterModal(false);
+        setRegisterData({ enrollment_no: '', name: '', email: '', phone_no: '', gender: '', college: '', upiId: '' });
+        setIdCardFile(null);
+    } catch (error) {
+        toast.error(error.response?.data?.error || "Registration failed.", { duration: 6000 });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   React.useEffect(() => {
     const handleBeforeInstallPrompt = (e) => {
@@ -157,14 +190,12 @@ export default function LandingScreen({ onGetStarted }) {
             transition={{ duration: 0.8, delay: 0.8 }}
             className="flex flex-col sm:flex-row gap-5 items-center w-full max-w-md mx-auto"
           >
-            <a
-              href={GOOGLE_FORM_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={() => setShowRegisterModal(true)}
               className="w-full sm:w-auto flex-1 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg hover:shadow-[0_0_40px_-10px_rgba(124,58,237,0.5)] hover:scale-105 transition-all duration-300"
             >
               Register Now
-            </a>
+            </button>
             <button
               onClick={onGetStarted}
               className="w-full sm:w-auto flex-1 px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-lg hover:bg-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300"
@@ -253,6 +284,96 @@ export default function LandingScreen({ onGetStarted }) {
         </footer>
 
       </div>
+
+      {/* Registration Modal */}
+      {showRegisterModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[100] p-4 overflow-y-auto">
+              <div className="bg-gray-900 border border-white/10 p-6 rounded-2xl shadow-2xl w-full max-w-lg relative my-8">
+                  <button 
+                      onClick={() => setShowRegisterModal(false)} 
+                      className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl font-bold transition-colors"
+                  >
+                      &times;
+                  </button>
+                  <h2 className="text-2xl font-bold mb-2 text-white">Join the Waitlist</h2>
+                  <p className="text-gray-400 text-sm mb-6">Fill in your details accurately. Your ID will be manually verified by admins before you can access the platform.</p>
+
+                  <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Enrollment No. *</label>
+                              <input required value={registerData.enrollment_no} onChange={e => setRegisterData({...registerData, enrollment_no: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="e.g. 00113202721" />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Full Name *</label>
+                              <input required value={registerData.name} onChange={e => setRegisterData({...registerData, name: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="As per college ID" />
+                          </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Email ID *</label>
+                              <input required type="email" value={registerData.email} onChange={e => setRegisterData({...registerData, email: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="john@example.com" />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Phone No. *</label>
+                              <input required type="tel" value={registerData.phone_no} onChange={e => setRegisterData({...registerData, phone_no: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="10-digit mobile number" />
+                          </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">Gender *</label>
+                              <select required value={registerData.gender} onChange={e => setRegisterData({...registerData, gender: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+                                  <option value="" disabled>Select Gender</option>
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                  <option value="Other">Other</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">College *</label>
+                              <select required value={registerData.college} onChange={e => setRegisterData({...registerData, college: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none">
+                                  <option value="" disabled>Select College</option>
+                                  <option value="GTBIT">GTBIT</option>
+                                  <option value="MAIT">MAIT</option>
+                                  <option value="MSIT">MSIT</option>
+                                  <option value="BVCOE">BVCOE</option>
+                                  <option value="ADGITM">ADGITM</option>
+                                  <option value="BPIT">BPIT</option>
+                                  <option value="OTHERS">Others</option>
+                              </select>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Your UPI No. or UPI id <span className="text-gray-500">(Optional - for earning coins)</span></label>
+                          <input value={registerData.upiId} onChange={e => setRegisterData({...registerData, upiId: e.target.value})} className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none" placeholder="e.g. 9876543210@paytm" />
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">Clear Front Photo of your college ID *</label>
+                          <input 
+                              required 
+                              type="file" 
+                              accept="image/*"
+                              onChange={e => setIdCardFile(e.target.files[0])} 
+                              className="w-full p-2.5 bg-black/50 border border-gray-700 rounded-lg text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer" 
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Must be clearly readable. Max size 5MB.</p>
+                      </div>
+
+                      <button 
+                          type="submit" 
+                          disabled={isSubmitting}
+                          className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                          {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
     </div>
   );
 }

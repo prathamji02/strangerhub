@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
-import { sendOtpEmail } from '../services/emailService.js';
+import multer from 'multer';
+import { sendOtpEmail, sendRegistrationReceivedEmail } from '../services/emailService.js';
+import { uploadIdCard } from '../services/supabaseService.js';
 
 const router = Router();
 const prisma = new PrismaClient();
+const upload = multer({ storage: multer.memoryStorage() });
 
 const protect = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -22,7 +25,78 @@ const protect = (req, res, next) => {
   }
 };
 
-// Route 1: /api/auth/login - Find user and send OTP
+// Route 1: /api/auth/register-request - Submit a new user registration request
+router.post('/register-request', upload.single('idCardPhoto'), async (req, res) => {
+  try {
+    const { enrollment_no, name, email, phone_no, gender, college, upiId } = req.body;
+    
+    if (!enrollment_no || !name || !email || !phone_no || !gender || !college) {
+      return res.status(400).json({ error: 'All fields except UPI ID are required.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload a clear front photo of your college ID.' });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { enrollment_no },
+          { email },
+          { phone_no }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'A user with this Enrollment No., Email, or Phone No. is already registered.' });
+    }
+
+    // Check if a pending request already exists
+    const existingRequest = await prisma.registrationRequest.findFirst({
+      where: {
+        OR: [
+          { enrollment_no },
+          { email },
+          { phone_no }
+        ],
+        status: 'PENDING'
+      }
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ error: 'You already have a pending registration request.' });
+    }
+
+    // Upload ID to Supabase
+    const idCardPhotoUrl = await uploadIdCard(req.file.buffer, req.file.originalname, req.file.mimetype);
+
+    // Save Request
+    const request = await prisma.registrationRequest.create({
+      data: {
+        enrollment_no,
+        name,
+        email,
+        phone_no,
+        gender,
+        college,
+        upiId: upiId || null,
+        idCardPhotoUrl
+      }
+    });
+
+    // Send email
+    await sendRegistrationReceivedEmail(name, email);
+
+    res.status(201).json({ message: 'Your request has been submitted and you will receive a mail after verification by our admin.' });
+  } catch (error) {
+    console.error('Registration request error:', error);
+    res.status(500).json({ error: 'Failed to submit registration request.' });
+  }
+});
+
+// Route 2: /api/auth/login - Find user and send OTP
 router.post('/login', async (req, res) => {
   const { enrollment_no } = req.body;
   if (!enrollment_no) {

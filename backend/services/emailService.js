@@ -76,3 +76,62 @@ export const sendWelcomeEmail = async (userName, userEmail, userEnrollmentNo) =>
         throw error;
     }
 };
+
+export const sendRegistrationReceivedEmail = async (userName, userEmail) => {
+    const emailContent = `
+        <div style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Hi ${userName},</h2>
+            <p>We have successfully received your registration request for IPU Friendlist!</p>
+            <p>Our admin team is currently reviewing your details and verifying your college ID. This usually takes between 24-48 hours.</p>
+            <p>You will receive another email from us as soon as your account has been approved.</p>
+            <p>Best,<br/>The IPU Friendlist Team</p>
+        </div>
+    `;
+
+    try {
+        if (!resend) {
+            console.log(`[MOCK EMAIL] Registration Received to ${userEmail}`);
+            return;
+        }
+        await resend.emails.send({
+            from: fromEmail,
+            to: userEmail,
+            subject: 'Registration Request Received - IPU Friendlist',
+            html: emailContent,
+        });
+        console.log(`Registration received email sent to ${userEmail}`);
+    } catch (error) {
+        console.error("Error sending registration received email:", error);
+    }
+};
+
+export const sendRejectionEmail = async (userName, userEmail, remarks) => {
+    const emailContent = `
+        <div style="font-family: Arial, sans-serif; color: #333;">
+            <h2>Hi ${userName},</h2>
+            <p>Thank you for your interest in IPU Friendlist.</p>
+            <p>Unfortunately, your registration request has been rejected for the following reason:</p>
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0; color: #991b1b;">
+                ${remarks || "Your ID could not be verified."}
+            </div>
+            <p>If you believe this was a mistake, you may submit a new registration request with correct details and a clearer ID photo.</p>
+            <p>Best,<br/>The IPU Friendlist Team</p>
+        </div>
+    `;
+
+    try {
+        if (!resend) {
+            console.log(`[MOCK EMAIL] Registration Rejection to ${userEmail} - Reason: ${remarks}`);
+            return;
+        }
+        await resend.emails.send({
+            from: fromEmail,
+            to: userEmail,
+            subject: 'Update on your IPU Friendlist Registration',
+            html: emailContent,
+        });
+        console.log(`Registration rejection email sent to ${userEmail}`);
+    } catch (error) {
+        console.error("Error sending registration rejection email:", error);
+    }
+};

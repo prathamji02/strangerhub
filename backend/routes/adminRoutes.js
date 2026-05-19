@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import xlsx from 'xlsx';
-import { sendWelcomeEmail } from '../services/emailService.js';
+import { sendWelcomeEmail, sendRejectionEmail } from '../services/emailService.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -264,6 +264,110 @@ router.post('/register', adminProtect, async (req, res) => {
       return res.status(400).json({ error: `A user with this ${field.replace('_', ' ')} already exists.` });
     }
     res.status(500).json({ error: 'Failed to create user.' });
+  }
+});
+
+// GET /api/admin/registration-requests
+router.get('/registration-requests', adminProtect, async (req, res) => {
+  try {
+    const status = req.query.status || 'PENDING';
+    const requests = await prisma.registrationRequest.findMany({
+      where: { status },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch registration requests.' });
+  }
+});
+
+// POST /api/admin/registration-requests/:id/approve
+router.post('/registration-requests/:id/approve', adminProtect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await prisma.registrationRequest.findUnique({ where: { id } });
+
+    if (!request || request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Invalid or already processed request.' });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { enrollment_no: request.enrollment_no },
+          { email: request.email }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists.' });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        enrollment_no: request.enrollment_no,
+        name: request.name,
+        email: request.email,
+        phone_no: request.phone_no,
+        gender: request.gender,
+        college: request.college,
+      }
+    });
+
+    if (request.upiId) {
+       await prisma.userPaymentDetail.create({
+         data: {
+           userId: newUser.id,
+           paymentMethod: 'UPI_ID',
+           upiId: request.upiId
+         }
+       });
+    }
+
+    await prisma.registrationRequest.update({
+      where: { id },
+      data: { status: 'APPROVED' }
+    });
+
+    await sendWelcomeEmail(newUser.name, newUser.email, newUser.enrollment_no);
+
+    res.json({ message: 'Request approved and user created.' });
+  } catch (error) {
+    console.error('Approval error', error);
+    res.status(500).json({ error: 'Failed to approve request.' });
+  }
+});
+
+// POST /api/admin/registration-requests/:id/reject
+router.post('/registration-requests/:id/reject', adminProtect, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remarks } = req.body;
+
+    if (!remarks) {
+      return res.status(400).json({ error: 'Rejection remarks are required.' });
+    }
+
+    const request = await prisma.registrationRequest.findUnique({ where: { id } });
+
+    if (!request || request.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Invalid or already processed request.' });
+    }
+
+    await prisma.registrationRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: remarks
+      }
+    });
+
+    await sendRejectionEmail(request.name, request.email, remarks);
+
+    res.json({ message: 'Request rejected.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reject request.' });
   }
 });
 

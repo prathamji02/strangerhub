@@ -202,3 +202,20 @@ model LoginBonusClaim {
   @@index([userId])
   @@index([status])
 }
+
+model RegistrationRequest {
+  id              String   @id @default(cuid())
+  enrollment_no   String
+  name            String
+  email           String
+  phone_no        String
+  gender          String
+  college         String
+  upiId           String?
+  idCardPhotoUrl  String
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+
+  @@index([status])
+}

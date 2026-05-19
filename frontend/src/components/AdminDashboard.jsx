@@ -21,6 +21,7 @@ export default function AdminDashboard({ onBack }) {
     const [adminView, setAdminView] = useState('reports');
     const [reports, setReports] = useState([]);
     const [users, setUsers] = useState([]);
+    const [registrationRequests, setRegistrationRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [userChats, setUserChats] = useState([]);
@@ -88,6 +89,11 @@ export default function AdminDashboard({ onBack }) {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setLoginBonusClaims(bonusRes.data.claims || []);
+            } else if (type === 'registrations') {
+                const reqRes = await api.get('/admin/registration-requests?status=PENDING', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setRegistrationRequests(reqRes.data);
             } else {
                 const { data } = await api.get(`/admin/${type}`, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -138,6 +144,33 @@ export default function AdminDashboard({ onBack }) {
                 </div>
             </div>
         ), { duration: 10000 });
+    };
+
+    const handleApproveRegistration = async (id) => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/registration-requests/${id}/approve`, {}, { headers: { Authorization: `Bearer ${token}` } }),
+            {
+                loading: 'Approving request...',
+                success: 'Request approved successfully.',
+                error: 'Failed to approve request.',
+            }
+        );
+        fetchData('registrations');
+    };
+
+    const handleRejectRegistration = async (id, remarks) => {
+        const token = localStorage.getItem('authToken');
+        await toast.promise(
+            api.post(`/admin/registration-requests/${id}/reject`, { remarks }, { headers: { Authorization: `Bearer ${token}` } }),
+            {
+                loading: 'Rejecting request...',
+                success: 'Request rejected.',
+                error: 'Failed to reject request.',
+            }
+        );
+        setModal({ type: null, data: null });
+        fetchData('registrations');
     };
 
     const handleDeleteLog = async (reportId) => {
@@ -468,10 +501,11 @@ export default function AdminDashboard({ onBack }) {
                     </div>
                 </div>
 
-                <div className="flex border-b border-gray-700 mb-4">
-                    <button onClick={() => setAdminView('reports')} className={`py-2 px-4 ${adminView === 'reports' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Reports & Logs</button>
-                    <button onClick={() => setAdminView('users')} className={`py-2 px-4 ${adminView === 'users' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Users</button>
-                    <button onClick={() => setAdminView('coins')} className={`py-2 px-4 ${adminView === 'coins' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Coin Management</button>
+                <div className="flex border-b border-gray-700 mb-4 overflow-x-auto">
+                    <button onClick={() => setAdminView('reports')} className={`whitespace-nowrap py-2 px-4 ${adminView === 'reports' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Reports & Logs</button>
+                    <button onClick={() => setAdminView('users')} className={`whitespace-nowrap py-2 px-4 ${adminView === 'users' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Users</button>
+                    <button onClick={() => setAdminView('coins')} className={`whitespace-nowrap py-2 px-4 ${adminView === 'coins' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Coin Management</button>
+                    <button onClick={() => setAdminView('registrations')} className={`whitespace-nowrap py-2 px-4 ${adminView === 'registrations' ? 'border-b-2 border-blue-500 text-white' : 'text-gray-400'}`}>Registrations</button>
                 </div>
 
                 {loading && <p>Loading...</p>}
@@ -580,6 +614,41 @@ export default function AdminDashboard({ onBack }) {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {adminView === 'registrations' && !loading && (
+                    <div className="bg-gray-800 rounded-lg shadow-lg overflow-x-auto p-4">
+                        <h2 className="text-xl font-bold mb-4">Pending Registration Requests</h2>
+                        {registrationRequests.length === 0 ? (
+                            <p className="text-gray-400">No pending registrations.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {registrationRequests.map(req => (
+                                    <div key={req.id} className="bg-gray-700 p-4 rounded-lg flex flex-col gap-2">
+                                        <div className="flex justify-between">
+                                            <span className="font-bold">{req.name}</span>
+                                            <span className="text-sm text-gray-400">{req.enrollment_no}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-300">Email: {req.email}</p>
+                                        <p className="text-sm text-gray-300">Phone: {req.phone_no}</p>
+                                        <p className="text-sm text-gray-300">College: {req.college}</p>
+                                        <p className="text-sm text-gray-300">Gender: {req.gender}</p>
+                                        {req.upiId && <p className="text-sm text-gray-300">UPI: {req.upiId}</p>}
+                                        <div className="mt-2 mb-2">
+                                            <a href={req.idCardPhotoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-sm flex items-center gap-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                                                View ID Photo
+                                            </a>
+                                        </div>
+                                        <div className="flex gap-2 mt-auto pt-2 border-t border-gray-600">
+                                            <button onClick={() => handleApproveRegistration(req.id)} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded">Approve</button>
+                                            <button onClick={() => setModal({ type: 'rejectRegistration', data: req })} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded">Reject</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -928,17 +997,39 @@ export default function AdminDashboard({ onBack }) {
             </Modal>
 
             <Modal isOpen={modal.type === 'edit'} onClose={() => setModal({ type: null, data: null })}>
-                <h2 className="text-2xl font-bold mb-4">Edit User</h2>
-                <form onSubmit={handleEditUser} className="space-y-3">
-                    <input value={modal.data?.name || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, name: e.target.value } })} placeholder="Full Name" className="w-full p-2 bg-gray-700 rounded" required />
-                    <input value={modal.data?.fake_name || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, fake_name: e.target.value } })} placeholder="Username" className="w-full p-2 bg-gray-700 rounded" />
-                    <input value={modal.data?.enrollment_no || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, enrollment_no: e.target.value } })} placeholder="Enrollment No" className="w-full p-2 bg-gray-700 rounded" required />
-                    <input value={modal.data?.email || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, email: e.target.value } })} placeholder="Email" className="w-full p-2 bg-gray-700 rounded" required />
-                    <input value={modal.data?.phone_no || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, phone_no: e.target.value } })} placeholder="Phone No" className="w-full p-2 bg-gray-700 rounded" required />
-                    <input value={modal.data?.gender || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, gender: e.target.value } })} placeholder="Gender" className="w-full p-2 bg-gray-700 rounded" required />
-                    <input value={modal.data?.college || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, college: e.target.value } })} placeholder="College" className="w-full p-2 bg-gray-700 rounded" />
-                    <button type="submit" className="w-full p-2 rounded bg-blue-600 hover:bg-blue-700 font-bold">Save Changes</button>
-                </form>
+                <h2 className="text-xl font-bold mb-4">Edit User</h2>
+                {modal.data && (
+                    <form onSubmit={handleEditUser} className="flex flex-col gap-4">
+                        <input value={modal.data.name} onChange={e => setModal({ ...modal, data: { ...modal.data, name: e.target.value } })} placeholder="Full Name" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.enrollment_no} onChange={e => setModal({ ...modal, data: { ...modal.data, enrollment_no: e.target.value } })} placeholder="Enrollment No" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.fake_name || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, fake_name: e.target.value } })} placeholder="Username" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.email} onChange={e => setModal({ ...modal, data: { ...modal.data, email: e.target.value } })} placeholder="Email" type="email" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.phone_no} onChange={e => setModal({ ...modal, data: { ...modal.data, phone_no: e.target.value } })} placeholder="Phone No" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.gender} onChange={e => setModal({ ...modal, data: { ...modal.data, gender: e.target.value } })} placeholder="Gender" className="p-2 bg-gray-700 rounded text-white" />
+                        <input value={modal.data.college || ''} onChange={e => setModal({ ...modal, data: { ...modal.data, college: e.target.value } })} placeholder="College" className="p-2 bg-gray-700 rounded text-white" />
+                        <button type="submit" className="p-2 rounded bg-blue-600 font-bold hover:bg-blue-700 text-white">Save Changes</button>
+                    </form>
+                )}
+            </Modal>
+
+            <Modal isOpen={modal.type === 'rejectRegistration'} onClose={() => setModal({ type: null, data: null })}>
+                <h2 className="text-xl font-bold mb-4">Reject Registration Request</h2>
+                {modal.data && (
+                    <form onSubmit={(e) => { e.preventDefault(); handleRejectRegistration(modal.data.id, rejectReason); }} className="flex flex-col gap-4">
+                        <p className="text-sm text-gray-300">Rejecting request for {modal.data.name}</p>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            className="w-full bg-gray-700 text-white p-3 rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                            rows="4"
+                            placeholder="Enter rejection reason (e.g. ID card photo is blurry)..."
+                            required
+                        />
+                        <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded transition-colors">
+                            Confirm Rejection
+                        </button>
+                    </form>
+                )}
             </Modal>
         </div>
     );
